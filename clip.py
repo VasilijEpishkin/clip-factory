@@ -60,7 +60,11 @@ def transcribe(a):
     ctype = "int8_float16" if device == "cuda" else "int8"
     t0 = time.time()
     model = WhisperModel(model_name, device=device, compute_type=ctype, cpu_threads=4)
-    segs, info = model.transcribe(str(src(a.id)), word_timestamps=True, vad_filter=True, beam_size=1)
+    # decode via ffmpeg (16 kHz mono float32, ~64 MB per 17 min); faster-whisper's PyAV path breaks with av>=17
+    import numpy as np
+    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(src(a.id)), "-vn", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"],
+                         capture_output=True, check=True).stdout
+    segs, info = model.transcribe(np.frombuffer(pcm, np.float32), word_timestamps=True, vad_filter=True, beam_size=1)
     out = []
     for s in segs:  # generator: streams segment by segment
         out.append({"start": s.start, "end": s.end, "text": s.text.strip(),
