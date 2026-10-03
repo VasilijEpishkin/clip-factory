@@ -37,14 +37,15 @@ def test_x_expr():
 
 def test_caption_events_timing():
     ws = [{"w": "Hello", "s": 10.0, "e": 10.4}, {"w": "big", "s": 10.5, "e": 10.8}, {"w": "world.", "s": 10.9, "e": 11.3},
-          {"w": "Next", "s": 11.4, "e": 11.7}, {"w": "late", "s": 13.0, "e": 13.4}]
-    ev = caption_events(ws, 10.0, 14.0)
-    assert len(ev) == 5
+          {"w": "Next", "s": 11.4, "e": 11.7}, {"w": "late", "s": 13.0, "e": 13.4}, {"w": "after", "s": 14.5, "e": 14.8}]
+    ev = caption_events(ws, 10.0, 15.0)
+    assert len(ev) == 6
     assert ev[0][:2] == (0.0, 0.5)          # held until next word starts
     assert ev[2][:2] == (0.9, 1.4)          # chunk end bridges small gap to next chunk
-    assert ev[3][:2] == (1.4, 1.7)          # gap to "late" > 0.3 s: ends at word end
+    assert ev[3][:2] == (1.4, 1.7)          # gap to "late" 1.3 s >= 1.2 s: ends at word end
+    assert ev[4][:2] == (3.0, 4.5)          # gap to "after" 1.1 s < 1.2 s: held until it starts
     assert "{\\c&H00E5FF&}HELLO" in ev[0][2] and "WORLD." in ev[0][2] and "NEXT" not in ev[0][2]
-    assert all(0 <= a < b <= 4.0 for a, b, _ in ev)
+    assert all(0 <= a < b <= 5.0 for a, b, _ in ev)
 
 
 def test_ass_time():

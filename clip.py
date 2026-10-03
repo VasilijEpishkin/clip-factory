@@ -212,8 +212,9 @@ def ass_time(t):
     return f"{cs // 360000}:{cs // 6000 % 60:02d}:{cs // 100 % 60:02d}.{cs % 100:02d}"
 
 
-def caption_events(words, start, end, max_words=3, gap=0.6):
+def caption_events(words, start, end, max_words=3, gap=0.6, hold=1.2):
     """Word-level karaoke: chunks of <=max_words; one event per word, current word highlighted.
+    A chunk's last word stays on screen until the next chunk starts if that pause is < hold s (no flicker in pauses).
     Returns [(t0, t1, text)] relative to clip start."""
     ws = [w for w in words if w["s"] >= start - 0.05 and w["e"] <= end + 0.05 and w["w"]]
     chunks, cur = [], []
@@ -227,7 +228,7 @@ def caption_events(words, start, end, max_words=3, gap=0.6):
         nxt = chunks[ci + 1][0]["s"] if ci + 1 < len(chunks) else None
         for i, w in enumerate(ch):
             t0 = w["s"]
-            t1 = ch[i + 1]["s"] if i + 1 < len(ch) else (nxt if nxt is not None and nxt - w["e"] < 0.3 else w["e"])
+            t1 = ch[i + 1]["s"] if i + 1 < len(ch) else (nxt if nxt is not None and nxt - w["e"] < hold else w["e"])
             txt = " ".join(("{\\c&H00E5FF&}" + x["w"].upper() + "{\\c&HFFFFFF&}") if j == i else x["w"].upper()
                            for j, x in enumerate(ch))
             ev.append((round(max(t0 - start, 0), 2), round(min(t1, end) - start, 2), txt))
