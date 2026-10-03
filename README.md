@@ -40,3 +40,16 @@ $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
   https://commons.wikimedia.org/wiki/File:NASA_Astronaut_Discusses_Life_In_Space_With_KHQ-TV,_Spokane%E2%80%99s_Lowedown_On_Life_Podcast_%E2%80%93_July_18,_2025_(jsc2025m000132).webm
 - License: **Public domain** (NASA work, per the Wikimedia Commons file page). ~16.7 min, 1920x1080.
 - YouTube was tried first (CC-BY search filter) but yt-dlp gets "Sign in to confirm you're not a bot" from this IP for every client.
+
+## First run (2026-10-03, nasa-khq, all steps under `nice -n 10`, a heavy rebuild running in parallel)
+
+| step | wall | peak RSS | notes |
+|---|---|---|---|
+| fetch | 13 min | 66 MB | 508 MB VP9 1080p from Commons at ~0.6 MB/s |
+| transcribe GPU (medium, int8_float16) | 71 s | 1.98 GB | 16.7 min audio, ~14x realtime |
+| transcribe CPU (small, int8, 4 threads) | 191 s | 1.52 GB | ~5x realtime |
+| highlights (claude -p) | 81 s | 0.33 GB | codex CLI not logged in (401) -> fallback |
+| edit (3 clips, h264_nvenc) | 78 s | 0.70 GB | ~18-30 s per clip, face sampling dominates |
+| qa | 63 s | 0.35 GB | |
+
+All 3 clips pass QA (20-45 s, 1080x1920, audio ~-18 dB mean, captions, face in frame 100%, speech in first 2 s).
