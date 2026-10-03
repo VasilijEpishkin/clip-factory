@@ -25,6 +25,7 @@ def src(vid): return next(p for p in wdir(vid).glob("src.*") if p.suffix != ".pa
 def load(p): return json.loads(Path(p).read_text())
 def save(p, obj): Path(p).write_text(json.dumps(obj, indent=1, ensure_ascii=False))
 def all_words(tr): return [w for s in tr["segments"] for w in s["words"]]
+def norm_words(t): return re.findall(r"[a-z0-9']+", t.lower())
 
 
 # ---------------- fetch ----------------
@@ -80,7 +81,8 @@ PROMPT = """You are a short-form video editor. Below is a timestamped transcript
 Pick the {n} best moments to cut as standalone vertical shorts (TikTok/Shorts/Reels).
 Rules:
 - each clip {lo:.0f}-{hi:.0f} seconds long (end - start), boundaries on the given timestamps;
-- the first 2 seconds must already be a strong hook (a surprising claim, question, punchline) - no warm-up, no "so", "um", greetings;
+- the first 2 seconds must already be a strong hook (a surprising claim, question, punchline) - no warm-up, no greetings;
+- the first spoken word must NOT be a filler: "and", "so", "but", "like", "um", "uh", "you know" - start at the next sentence;
 - self-contained: understandable without the rest of the video, ends on a finished thought;
 - clips must not overlap.
 Return ONLY a JSON array, no prose, no code fences:
@@ -115,6 +117,32 @@ def parse_json_list(txt):
     return json.loads(m.group(0))
 
 
+FILLERS = {"and", "so", "um", "uh", "like", "but"}
+
+
+def filler_start(ws):
+    """True if the first spoken words (word dicts) are a filler: and/so/um/uh/like/but or "you know"."""
+    t = first_tokens(ws)
+    return bool(t) and (t[0] in FILLERS or t == ["you", "know"])
+
+
+def first_tokens(ws, n=2): return [t for w in ws[:n] for t in norm_words(w["w"])][:n]
+
+
+def skip_filler(words, i, within=1.5):
+    """Index of the word a clip starting at words[i] should start at to avoid a filler opening:
+    i itself if clean, else the first non-filler sentence start within `within` s, else the first word after
+    the leading filler run (also within `within` s); None if neither exists."""
+    if not filler_start(words[i:i + 2]): return i
+    near = [j for j in range(i + 1, len(words)) if words[j]["s"] - words[i]["s"] <= within]
+    for j in near:
+        if re.search(r"[.!?]$", words[j - 1]["w"]) and not filler_start(words[j:j + 2]): return j
+    j = i
+    while j < len(words) and filler_start(words[j:j + 2]):
+        j += 2 if first_tokens(words[j:j + 2]) == ["you", "know"] else 1
+    return j if j < len(words) and words[j]["s"] - words[i]["s"] <= within else None
+
+
 def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0):
     """Snap LLM times to word boundaries, enforce length and no overlap. Returns <= n clips in given order."""
     if not words: return []
@@ -124,9 +152,13 @@ def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0):
         except (KeyError, TypeError, ValueError): continue
         if e <= s: continue
         # snap to the nearest word start / end (LLM sees segment times, which coincide with word times)
-        s2 = min(words, key=lambda w: abs(w["s"] - s))["s"]
+        i = min(range(len(words)), key=lambda k: abs(words[k]["s"] - s))
         e2 = min(words, key=lambda w: abs(w["e"] - e))["e"]
-        if abs(s2 - s) > 2 or abs(e2 - e) > 2 or e2 <= s2: continue
+        if abs(words[i]["s"] - s) > 2: continue
+        i = skip_filler(words, i)  # never open on "and"/"so"/"you know"...
+        if i is None: continue
+        s2 = words[i]["s"]
+        if abs(e2 - e) > 2 or e2 <= s2: continue
         if e2 - s2 > hi:  # too long: trim to last word end within hi
             e2 = max(w["e"] for w in words if s2 < w["e"] <= s2 + hi)
         if e2 - s2 < lo - slack or e2 - s2 < 5: continue
@@ -138,9 +170,6 @@ def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0):
         kept.append(c | {"start": round(s2, 2), "end": round(e2, 2), "llm_start": s, "llm_end": e})
         if len(kept) == n: break
     return kept
-
-
-def norm_words(t): return re.findall(r"[a-z0-9']+", t.lower())
 
 
 def banner_text(c):
@@ -371,13 +400,15 @@ def qa(a):
             cap.set(cv2.CAP_PROP_POS_MSEC, dur * frac * 1000); ok, fr = cap.read()
             if ok: cv2.imwrite(str(out / f"clip_{n}_f{k}.png"), fr)
         cap.release()
-        first2 = [w["w"] for w in words if c["start"] - 0.05 <= w["s"] < c["start"] + 2]
+        first = [w for w in words if c["start"] - 0.05 <= w["s"] < c["start"] + 2]
+        first2 = [w["w"] for w in first]
         r = {"clip": n, "file": str(p), "title": c.get("title"), "duration": round(dur, 2),
              "resolution": f"{v.get('width')}x{v.get('height')}", "audio_mean_db": vol, "caption_events": n_caps,
              "face_in_frame_ratio": round(hits / tot, 2) if tot else 0, "first_2s_words": " ".join(first2)}
         r["checks"] = {"duration": MIN_LEN - 0.5 <= dur <= MAX_LEN + 0.5, "resolution": r["resolution"] == f"{OUT_W}x{OUT_H}",
                        "audio": vol is not None and vol > -40, "captions": n_caps > 0,
-                       "face_in_frame": r["face_in_frame_ratio"] >= 0.6, "hook_speech_2s": len(first2) >= 3}
+                       "face_in_frame": r["face_in_frame_ratio"] >= 0.6, "hook_speech_2s": len(first2) >= 3,
+                       "no_filler_start": not filler_start(first)}
         r["ok"] = all(r["checks"].values())
         report.append(r)
         print(f"clip_{n}: {'PASS' if r['ok'] else 'FAIL'} {r['checks']}")

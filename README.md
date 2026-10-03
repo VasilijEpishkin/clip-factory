@@ -33,7 +33,8 @@ $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
   one static 9:16 crop per scene centred on the median face x; ffmpeg `crop` with a per-scene `if(lt(t,..))` expression,
   ASS karaoke captions (<=3 words, current word yellow) + banner (`caption`, never the spoken hook) for the first 2.5 s, loudnorm to -14 LUFS.
 - **qa**: duration 20-45 s, 1080x1920, audio mean volume > -40 dB, caption events, face fully inside frame on >=60% of
-  samples (2/s), >=3 words spoken in the first 2 s.
+  samples (2/s), >=3 words spoken in the first 2 s, first word not a filler (and/so/but/like/um/uh/you know).
+  `validate()` moves a filler opening to the next sentence start within 1.5 s (else past the filler run, else drops the pick).
 
 ## Test input
 

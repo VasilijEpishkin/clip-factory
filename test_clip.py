@@ -57,3 +57,33 @@ def test_banner_never_repeats_spoken_hook():
     assert banner_text({"hook": hook, "caption": "NASA astronaut on her childhood", "title": "T"}) == "NASA astronaut on her childhood"
     assert banner_text({"hook": hook, "caption": "Always wanted to be an astronaut?", "title": "Knew at 3"}) == "Knew at 3"
     assert banner_text({"hook": hook, "title": "Knew at 3"}) == "Knew at 3"
+
+
+def _ws(text, t0=0.0, step=0.3):
+    return [{"w": w, "s": round(t0 + i * step, 2), "e": round(t0 + i * step + 0.25, 2)} for i, w in enumerate(text.split())]
+
+
+def test_filler_start():
+    from clip import filler_start
+    for t in ["And, you know, one", "So here", "You know what", "um okay", "Like, really", "But then"]:
+        assert filler_start(_ws(t)), t
+    for t in ["Did you always", "Knowledge is", "Sometimes I", "Younger kids"]:
+        assert not filler_start(_ws(t)), t
+
+
+def test_skip_filler_prefers_sentence_start_then_strips_run():
+    from clip import skip_filler
+    ws = _ws("so yeah. One of the biggest barriers")       # sentence start at 0.6 s
+    assert ws[skip_filler(ws, 0)]["w"] == "One"
+    ws = _ws("And, you know, one of the biggest barriers")  # no sentence start: drop the filler run
+    assert ws[skip_filler(ws, 0)]["w"] == "one"
+    ws = _ws("Did you always want")
+    assert skip_filler(ws, 0) == 0
+    ws = _ws("and " * 8 + "finally", step=0.3)               # clean word 2.4 s away: give up
+    assert skip_filler(ws, 0) is None
+
+
+def test_validate_moves_start_off_filler():
+    ws = WORDS[:20] + _ws("And, you know, one of the biggest barriers " + "w " * 80, t0=10.0)
+    [c] = validate([{"start": 10.0, "end": 35.0}], ws)
+    assert c["start"] == 10.9  # "one"
