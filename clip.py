@@ -34,7 +34,8 @@ def fetch(a):
     cmd = [YTDLP, "--js-runtimes", f"node:{NODE}", "-S", "res:1080,vcodec:vp9", "--no-playlist",
            "-o", str(d / "src.%(ext)s"), "--print-json", "--no-simulate", a.url]
     info = json.loads(subprocess.run(cmd, check=True, capture_output=True, text=True).stdout.splitlines()[-1])
-    save(d / "meta.json", {k: info.get(k) for k in ("webpage_url", "title", "license", "duration", "width", "height", "uploader")} | {"url": a.url})
+    keep = ("webpage_url", "title", "license", "duration", "width", "height", "uploader", "heatmap")  # heatmap: YouTube "Most replayed"
+    save(d / "meta.json", {k: info.get(k) for k in keep} | {"url": a.url})
     print(src(a.id))
 
 
@@ -90,9 +91,29 @@ Return ONLY a JSON array, no prose, no code fences:
 "caption" is burned on screen over the first seconds while the hook is spoken: it must ADD context the words don't give
 (who is speaking, the stakes, the topic), never repeat or paraphrase the opening words.
 
-TRANSCRIPT:
+{extra}TRANSCRIPT:
 {transcript}
 """
+
+
+def heatmap_peaks(hm, k=8):
+    """Top-k "Most replayed" buckets of a yt-dlp heatmap, touching ones merged: [(t0, t1, value)] by time."""
+    # ponytail: first bucket skipped (everyone replays the start); no local-maximum detection
+    top = sorted(hm[1:], key=lambda b: -b["value"])[:k]
+    peaks = []
+    for b in sorted(top, key=lambda b: b["start_time"]):
+        if peaks and b["start_time"] <= peaks[-1][1] + 1e-6:
+            peaks[-1] = (peaks[-1][0], b["end_time"], max(peaks[-1][2], b["value"]))
+        else:
+            peaks.append((b["start_time"], b["end_time"], b["value"]))
+    return peaks
+
+
+def peaks_block(peaks):
+    if not peaks: return ""
+    return ("MOST REPLAYED moments of this video (YouTube heatmap, replay=1.0 is the most replayed) - "
+            "strongly prefer clips that contain one of them:\n"
+            + "\n".join(f"[{a:.1f}-{b:.1f}] replay={v:.2f}" for a, b, v in peaks) + "\n\n")
 
 
 def llm_codex(prompt):
@@ -143,11 +164,17 @@ def skip_filler(words, i, within=1.5):
     return j if j < len(words) and words[j]["s"] - words[i]["s"] <= within else None
 
 
-def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0):
-    """Snap LLM times to word boundaries, enforce length and no overlap. Returns <= n clips in given order."""
+def hits_peak(c, peaks):
+    try: return any(float(c["start"]) < b and a < float(c["end"]) for a, b, _ in peaks)
+    except (KeyError, TypeError, ValueError): return False
+
+
+def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0, peaks=()):
+    """Snap LLM times to word boundaries, enforce length and no overlap. Returns <= n clips,
+    candidates overlapping a heatmap peak first, otherwise in given order."""
     if not words: return []
     kept = []
-    for c in cands:
+    for c in sorted(cands, key=lambda c: not hits_peak(c, peaks)):  # stable
         try: s, e = float(c["start"]), float(c["end"])
         except (KeyError, TypeError, ValueError): continue
         if e <= s: continue
@@ -182,14 +209,17 @@ def banner_text(c):
 def highlights(a):
     tr = load(wdir(a.id) / "transcript.json")
     lines = "\n".join(f"[{s['start']:.1f}-{s['end']:.1f}] {s['text']}" for s in tr["segments"])
-    prompt = PROMPT.format(n=N_CLIPS + 3, lo=MIN_LEN, hi=MAX_LEN, transcript=lines)  # ask extra, some fail validation
+    meta = wdir(a.id) / "meta.json"
+    peaks = heatmap_peaks(load(meta).get("heatmap") or []) if meta.exists() else []
+    prompt = PROMPT.format(n=N_CLIPS + 3, lo=MIN_LEN, hi=MAX_LEN, transcript=lines,  # ask extra, some fail validation
+                           extra=peaks_block(peaks))
     order = [a.backend] + [b for b in BACKENDS if b != a.backend]
     for b in order:
         if b == "codex" and not shutil.which("codex"): continue
         t0 = time.time()
         try:
             raw = BACKENDS[b](prompt)
-            clips = validate(parse_json_list(raw), all_words(tr))
+            clips = validate(parse_json_list(raw), all_words(tr), peaks=peaks)
         except Exception as e:
             print(f"{b} failed: {e} {(getattr(e, 'stderr', '') or '')[-300:]}", file=sys.stderr); continue
         if clips:

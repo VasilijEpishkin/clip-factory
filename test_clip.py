@@ -88,3 +88,14 @@ def test_validate_moves_start_off_filler():
     ws = WORDS[:20] + _ws("And, you know, one of the biggest barriers " + "w " * 80, t0=10.0)
     [c] = validate([{"start": 10.0, "end": 35.0}], ws)
     assert c["start"] == 10.9  # "one"
+
+
+def test_heatmap_peaks_and_preference():
+    from clip import heatmap_peaks, peaks_block
+    hm = [{"start_time": i * 10.0, "end_time": i * 10.0 + 10, "value": v}
+          for i, v in enumerate([1.0, .1, .2, .9, .8, .1, .1, .7, .1, .1])]
+    assert heatmap_peaks(hm, k=3) == [(30.0, 50.0, .9), (70.0, 80.0, .7)]  # bucket 0 ignored, 30-40 + 40-50 merged
+    assert "[30.0-50.0] replay=0.90" in peaks_block(heatmap_peaks(hm, k=3)) and peaks_block([]) == ""
+    cands = [{"start": 100, "end": 125}, {"start": 0, "end": 25}, {"start": 30, "end": 55}]
+    got = validate(cands, WORDS, n=2, peaks=[(40.0, 50.0, .9)])
+    assert [round(c["start"]) for c in got] == [30, 100]  # peak overlap first, then LLM order
