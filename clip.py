@@ -32,9 +32,16 @@ def norm_words(t): return re.findall(r"[a-z0-9']+", t.lower())
 # ---------------- fetch ----------------
 def fetch(a):
     d = wdir(a.id); d.mkdir(parents=True, exist_ok=True)
-    cmd = [YTDLP, "--js-runtimes", f"node:{NODE}", "-S", "res:1080,vcodec:vp9", "--no-playlist",
-           "-o", str(d / "src.%(ext)s"), "--print-json", "--no-simulate", a.url]
-    info = json.loads(subprocess.run(cmd, check=True, capture_output=True, text=True).stdout.splitlines()[-1])
+    base = [YTDLP, "--js-runtimes", f"node:{NODE}", "--no-playlist", "-o", str(d / "src.%(ext)s"),
+            "--print-json", "--no-simulate"] + (["--cookies", a.cookies] if a.cookies else [])
+    # up to 4K: a 9:16 crop of 1080p is 608x1080 and gets upscaled 1.78x; of 2160p it is downscaled
+    for res in ("2160", "1080"):
+        r = subprocess.run(base + ["-S", f"res:{res},vcodec:vp9", a.url], capture_output=True, text=True)
+        if r.returncode == 0: break
+        print(f"res:{res} failed: {r.stderr.strip()[-400:]}", file=sys.stderr)
+    else:
+        sys.exit("fetch failed")
+    info = json.loads(r.stdout.splitlines()[-1])
     keep = ("webpage_url", "title", "license", "duration", "width", "height", "uploader", "heatmap")  # heatmap: YouTube "Most replayed"
     save(d / "meta.json", {k: info.get(k) for k in keep} | {"url": a.url})
     print(src(a.id))
@@ -468,7 +475,8 @@ def qa(a):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = ap.add_subparsers(dest="cmd", required=True)
-    p = sp.add_parser("fetch"); p.add_argument("url"); p.add_argument("--id", required=True); p.set_defaults(f=fetch)
+    p = sp.add_parser("fetch"); p.add_argument("url"); p.add_argument("--id", required=True)
+    p.add_argument("--cookies", help="Netscape cookies.txt of a SEPARATE account (YouTube bot check)"); p.set_defaults(f=fetch)
     p = sp.add_parser("transcribe"); p.add_argument("id"); p.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
     p.add_argument("--model"); p.set_defaults(f=transcribe)
     p = sp.add_parser("highlights"); p.add_argument("id"); p.add_argument("--backend", default="codex", choices=list(BACKENDS))

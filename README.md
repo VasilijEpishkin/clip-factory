@@ -12,11 +12,28 @@ mkdir -p tools && curl -sSfL -o tools/blaze_face_short_range.tflite \
 ```
 Needs system `ffmpeg` with libass (`h264_nvenc` used when available, else libx264), `yt-dlp`, and `codex` or `claude` CLI.
 
+### YouTube bot check ("Sign in to confirm you're not a bot")
+
+Two layers, neither guaranteed. Prefer the rights holder's source file from the campaign brief.
+1. PO tokens via [bgutil-ytdlp-pot-provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) (GPL-3.0; we only run it,
+   no code copied). The plugin is a pip package and is installed into the yt-dlp uv tool (2026-10-03):
+   `uv pip install --python ~/.local/share/uv/tools/yt-dlp/bin/python bgutil-ytdlp-pot-provider==2.0.1`.
+   It also needs a token provider; script mode works without Docker (Node >= 22, already present), **not built yet**:
+   ```
+   git clone --single-branch --branch 2.0.1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git ~/bgutil-ytdlp-pot-provider
+   cd ~/bgutil-ytdlp-pot-provider/server && npm ci && npx tsc     # -> build/generate_once.js, found by the plugin by default
+   ```
+   (or the HTTP server: `node build/main.js`, or `docker run -d --init -p 127.0.0.1:4416:4416 brainicism/bgutil-ytdlp-pot-provider`).
+   Check: `yt-dlp -v URL 2>&1 | grep pot` should show `Generating a gvs PO Token ... via bgutil script`.
+2. `--cookies cookies.txt` exported from a **separate** throwaway account, never the owner's main one (it can get banned).
+
+Metadata (incl. `heatmap`) already works from this IP without either; format downloads are what get blocked.
+
 ## Run
 
 ```
 P="nice -n 10 .venv/bin/python clip.py"
-$P fetch URL --id ID       # work/ID/src.*, meta.json
+$P fetch URL --id ID       # work/ID/src.* (best <=2160p, retry capped at 1080p), meta.json (+ YouTube heatmap); --cookies FILE
 $P transcribe ID           # work/ID/transcript.json  (CUDA medium int8_float16, or CPU small int8; --device/--model)
 $P highlights ID           # work/ID/highlights.json  (--backend codex|claude; falls back to the other)
 $P edit ID                 # out/ID/clip_N.mp4 + clip_N.ass + edit.json
