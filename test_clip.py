@@ -128,3 +128,43 @@ def test_hermes_backend_never_uses_default_profile(monkeypatch):
     assert clip.llm_hermes("PROMPT") == "[]"
     cmd, home = calls[0]
     assert home == "/x/profiles/clip" and cmd[cmd.index("-z") + 1] == "PROMPT" and "openai-codex" in cmd
+
+
+L, R = (0.3, 0.4, 0.08, 0.15), (0.7, 0.4, 0.08, 0.15)  # two seated faces (cx, cy, w, h)
+
+
+def test_dedupe_and_two_shot():
+    from clip import dedupe, two_shot
+    assert dedupe([L, (0.301, 0.4, 0.08, 0.15), R]) == [L, R]                # tile duplicate dropped
+    assert two_shot([[L, R]] * 6 + [[L]] * 4) == (L, R)                       # coexist 6/10 >= 0.5
+    assert two_shot([[L, R]] * 4 + [[L]] * 6) is None                         # shot/reverse-shot, not a two-shot
+    assert two_shot([[L, (0.4, 0.4, 0.08, 0.15)]] * 5) is None                # shoulder to shoulder: one crop frames both
+    assert two_shot([[L, (0.7, 0.4, 0.02, 0.04)]] * 5) is None                # tiny background face
+    assert two_shot([]) is None
+
+
+def test_attribute_and_hold():
+    from clip import attribute_windows, hold_speaker, is_conversation
+    act = [[5, 1], [5, 1], [1, 5], [3, 3], [5, 1]]
+    assert attribute_windows(act, [1, 0.1, 1, 1, 1]) == [0, None, 1, None, 0]  # quiet window / tie don't vote
+    assert attribute_windows(act, []) == [0, 0, 1, None, 0]                     # no audio: mouths alone
+    assert hold_speaker([None, 0, 0, 1, 0, 0, 1, 1, 1, None, 1]) == [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]  # 3-win switch, backdated
+    assert hold_speaker([1, 1, 0, None, 0, 1]) == [1, 1, 1, 1, 1, 1]                                     # "yeah" doesn't steal
+    assert hold_speaker([None, None]) == [None, None]
+    assert is_conversation([0, 0, 0, 1, None]) and not is_conversation([0] * 9 + [1]) and not is_conversation([None])
+
+
+def test_crop_plan_follows_speaker_and_stacks():
+    from clip import crop_plan, crop_x, stack_spans, WIN
+    W, H = 1920, 1080
+    samples = [(t / 2, [L, R]) for t in range(20)]                          # 10 s two-shot
+    xl, xr = crop_x(L[0], W, H)[0], crop_x(R[0], W, H)[0]
+    verd = lambda a, b, pair: [0] * 10 + [1] * 15                              # left talks 4 s, then right
+    plan, cw = crop_plan(samples, [], 10.0, W, H, verd)
+    assert [p[1] for p in plan] == [xl, xr] and abs(plan[1][0] - 10 * WIN) < 1e-9 and cw == 606  # cut at 4.0 s
+    plan, _ = crop_plan(samples, [], 10.0, W, H, verd, stack=True)           # both talk -> stacked
+    assert len(plan) == 1 and plan[0][2] and stack_spans(plan, 10.0) == [(0.0, 10.0)]
+    w, h, tx, ty, bx, by = plan[0][2]
+    assert (w, h) == (972, 864) and tx < bx and 0 <= ty <= H - h
+    one = [(t / 2, [L]) for t in range(20)]                                   # single face: static crop, no verdicts needed
+    assert crop_plan(one, [], 10.0, W, H, lambda *a: 1 / 0)[0] == [(0.0, xl, None)]

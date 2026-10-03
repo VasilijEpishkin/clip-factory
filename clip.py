@@ -328,8 +328,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
 
-def write_ass(path, events, hook):
-    lines = [f"Dialogue: 0,{ass_time(t0)},{ass_time(t1)},Cap,,0,0,0,,{t}" for t0, t1, t in events]
+def write_ass(path, events, hook, seam=()):
+    """seam: (t0, t1) spans with the stacked layout; captions there sit on the seam between the two halves."""
+    on_seam = lambda t: any(a <= t < b for a, b in seam)
+    tag = "{\\pos(%d,%d)}" % (OUT_W // 2, OUT_H // 2 + 50)  # bottom-centre anchor: text straddles the seam
+    lines = [f"Dialogue: 0,{ass_time(t0)},{ass_time(t1)},Cap,,0,0,0,,{tag if on_seam(t0) else ''}{t}" for t0, t1, t in events]
     if hook: lines.append(f"Dialogue: 1,{ass_time(0)},{ass_time(2.5)},Hook,,0,0,0,,{hook}")
     Path(path).write_text(ASS_HEAD + "\n".join(lines) + "\n")
 
@@ -355,11 +358,27 @@ def faces_in(det, frame_bgr, min_score=0.8):
             if d.categories[0].score < min_score: continue
             b = d.bounding_box
             out.append((d.categories[0].score, ((x0 + b.origin_x + b.width / 2) / W, (y0 + b.origin_y + b.height / 2) / H, b.width / W, b.height / H)))
-    return [f for _, f in sorted(out, key=lambda o: -o[0])]
+    return dedupe([f for _, f in sorted(out, key=lambda o: -o[0])])
+
+
+def iou(a, b):
+    """IoU of two (cx, cy, w, h) boxes."""
+    ix = max(0, min(a[0] + a[2] / 2, b[0] + b[2] / 2) - max(a[0] - a[2] / 2, b[0] - b[2] / 2))
+    iy = max(0, min(a[1] + a[3] / 2, b[1] + b[3] / 2) - max(a[1] - a[3] / 2, b[1] - b[3] / 2))
+    inter = ix * iy
+    return inter / (a[2] * a[3] + b[2] * b[3] - inter or 1)
+
+
+def dedupe(faces, thr=0.3):
+    """Drop repeated detections of one face (overlapping tiles), keeping the first (best-scored)."""
+    kept = []
+    for f in faces:
+        if all(iou(f, k) <= thr for k in kept): kept.append(f)
+    return kept
 
 
 def sample_faces(det, path, start, end, fps_sample=2.0):
-    """[(t_rel, cx or None)] sampled at fps_sample; reads frames sequentially (one in RAM at a time)."""
+    """[(t_rel, faces)] sampled at fps_sample (faces as from faces_in); reads frames sequentially (one in RAM at a time)."""
     import cv2
     cap = cv2.VideoCapture(str(path))
     cap.set(cv2.CAP_PROP_POS_MSEC, start * 1000)
@@ -373,7 +392,7 @@ def sample_faces(det, path, start, end, fps_sample=2.0):
         if i % step == 0:
             ok, fr = cap.retrieve()
             f = faces_in(det, fr) if ok else []
-            res.append((t - start, f[0][0] if f else None))
+            res.append((t - start, f))
         i += 1
     cap.release()
     return res
@@ -385,25 +404,146 @@ def scene_cuts(path, start, end):
     return [s[0].get_seconds() - start for s in sc[1:]]
 
 
-def crop_plan(samples, cuts, dur, W, H):
-    """One static crop per scene (median face x). Returns [(t_from, x)], cw."""
-    # ponytail: static crop per scene, no in-shot panning; add EMA tracking if speakers move a lot
+# ---- active speaker / stacked layout ----
+# Ported from mutonby/openshorts active_speaker.py and split_layout.py, MIT License, Copyright (c) 2024 OpenShorts
+# (https://github.com/mutonby/openshorts). Thresholds are theirs; code condensed to this pipeline's face tuples.
+WIN, AUDIO_FLOOR, MIN_MARGIN, MIN_SHARE = 0.4, 0.18, 0.15, 0.2
+
+
+def two_shot(frames, min_coexist=0.5, min_sep=0.2, min_w=0.045):
+    """(left, right) median (cx, cy, w, h) if two separated faces share >= min_coexist of the sampled frames, else None.
+    Coexistence tells a real two-shot from shot/reverse-shot cutting between two cameras."""
+    pairs = []
+    for faces in frames:
+        big = [f for f in faces if f[2] >= min_w][:2]
+        if len(big) == 2:
+            l, r = sorted(big)
+            if r[0] - l[0] >= min_sep: pairs.append((l, r))
+    if not pairs or len(pairs) < min_coexist * len(frames): return None
+    return tuple(tuple(statistics.median(p[k][i] for p in pairs) for i in range(4)) for k in (0, 1))
+
+
+def mouth_activity(path, start, dur, pair, W, H, fps=25, sw=480):
+    """Mouth movement per WIN-second window: [[a_left, a_right], ...]. Mean abs frame-to-frame change in each face's
+    mouth region divided by that region's contrast (pixel std): raw differences scale with lighting and contrast, so a
+    better-lit face would win every window. (openshorts instead rescales each speaker to their own 20-80th percentile
+    per scene; on a short scene where one person talks throughout that turns the talker into noise - measured.)"""
+    import numpy as np
+    sh = round(H * sw / W / 2) * 2
+    regions = []
+    for cx, cy, w, h in pair:  # mouth sits low in the brow-to-chin box; wide enough to include the jaw
+        my = cy + 0.22 * h
+        x0, y0 = int(max(0, (cx - 0.36 * w) * sw)), int(max(0, (my - 0.22 * h) * sh))
+        regions.append((x0, y0, int(min(sw, max(x0 + 1, (cx + 0.36 * w) * sw))), int(min(sh, max(y0 + 1, (my + 0.22 * h) * sh)))))
+    p = subprocess.Popen(["ffmpeg", "-v", "error", "-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-i", str(path), "-an",
+                          "-vf", f"fps={fps},scale={sw}:{sh}", "-f", "rawvideo", "-pix_fmt", "gray", "-"], stdout=subprocess.PIPE)
+    per, act, bucket, prev = round(fps * WIN), [], [], None
+    while len(buf := p.stdout.read(sw * sh)) == sw * sh:
+        fr = np.frombuffer(buf, np.uint8).reshape(sh, sw).astype(np.int16)
+        if prev is not None:
+            bucket.append([float(np.abs(fr[y0:y1, x0:x1] - prev[y0:y1, x0:x1]).mean() / (fr[y0:y1, x0:x1].std() + 1))
+                           for x0, y0, x1, y1 in regions])
+        prev = fr
+        if len(bucket) >= per: act.append(np.mean(bucket, 0).tolist()); bucket = []
+    p.wait()
+    if bucket: act.append(np.mean(bucket, 0).tolist())
+    return act
+
+
+def audio_envelope(path, start, dur):
+    """Per-WIN RMS of the audio normalised to its own peak; [] if no audio (then every window is eligible)."""
+    import numpy as np
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-i", str(path), "-vn",
+                          "-ac", "1", "-ar", "8000", "-f", "s16le", "-"], capture_output=True).stdout
+    x = np.frombuffer(raw, np.int16).astype(np.float32)
+    per = int(8000 * WIN); n = len(x) // per
+    if n < 1: return []
+    rms = np.sqrt((x[:n * per].reshape(n, per) ** 2).mean(1))
+    return (rms / rms.max()).tolist() if rms.max() > 0 else [0.0] * n
+
+
+def attribute_windows(act, loud):
+    """Speaker index per window, None where nobody talks (audio < AUDIO_FLOOR) or the mouths are too close to call."""
+    out = []
+    for i, (l, r) in enumerate(act):
+        if loud and i < len(loud) and loud[i] < AUDIO_FLOOR or l + r <= 0 or abs(l - r) / (l + r) < MIN_MARGIN:
+            out.append(None)
+        else:
+            out.append(0 if l > r else 1)
+    return out
+
+
+def is_conversation(verdicts, min_share=MIN_SHARE):
+    """Both speakers hold >= min_share of the attributed windows."""
+    c = [v for v in verdicts if v is not None]
+    return bool(c) and min(c.count(0), c.count(1)) / len(c) >= min_share
+
+
+def hold_speaker(verdicts, min_windows=3):
+    """Smoothed verdicts: unclear windows keep the current speaker, a new one must win min_windows in a row
+    (the cut is then backdated to where that run began: we render offline), the lead-in is backfilled with the
+    first speaker. All None if nobody was ever attributed."""
+    out, cur, pend, run, since = [], None, None, 0, 0
+    for i, v in enumerate(verdicts):
+        out.append(cur)
+        if v is not None and v != cur:
+            if v != pend: pend, run, since = v, 0, i
+            run += 1
+            if cur is None or run >= min_windows:
+                cur, pend, run = v, None, 0
+                out[since:] = [v] * (i + 1 - since)
+        elif v == cur:
+            pend, run = None, 0
+    first = next((v for v in out if v is not None), None)
+    return [first if v is None else v for v in out]
+
+
+def talk_verdicts(path, start, dur, pair, W, H):
+    return attribute_windows(mouth_activity(path, start, dur, pair, W, H), audio_envelope(path, start, dur))
+
+
+def stack_geom(pair, W, H, tight=0.8):
+    """(w, h, top_x, top_y, bot_x, bot_y): one crop size, left speaker on top, right below, each scaled to OUT_W x OUT_H/2.
+    tight < 1 drops the neighbour's shoulder at the cost of slight upscaling (openshorts SPLIT_TIGHTNESS)."""
+    ch = int(H * tight) // 2 * 2; cw = int(ch * OUT_W / (OUT_H // 2)) // 2 * 2
+    if cw > W: cw = W // 2 * 2; ch = int(cw * (OUT_H // 2) / OUT_W) // 2 * 2
+    xy = lambda f: (int(min(max(f[0] * W - cw / 2, 0), W - cw)), int(min(max(f[1] * H - ch * 0.42, 0), H - ch)))
+    return (cw, ch) + xy(pair[0]) + xy(pair[1])
+
+
+def crop_plan(samples, cuts, dur, W, H, verdicts=None, stack=False):
+    """Per scene: one static crop on the median best face; but in a two-shot (see two_shot) with
+    `verdicts(a, b, pair)` given, the crop follows the active speaker (switching on WIN-s windows), or with `stack`
+    and both people talking, both are stacked. Returns [(t_from, x, stack_geom or None)], cw."""
+    # ponytail: static crop per scene/speaker turn, no in-shot panning; add EMA tracking if speakers move a lot
     bounds = [0.0] + [c for c in cuts if 0 < c < dur] + [dur]
-    plan, last, cw = [], 0.5, None
+    plan, last, cw = [], 0.5, crop_x(0.5, W, H)[1]
     for a, b in zip(bounds, bounds[1:]):
-        xs = [x for t, x in samples if a <= t < b and x is not None]
-        cx = statistics.median(xs) if xs else last
-        last = cx
-        x, cw = crop_x(cx, W, H)
-        plan.append((a, x))
-    return plan, cw
+        frames = [f for t, f in samples if a <= t < b]
+        pair = two_shot(frames) if verdicts else None
+        v = verdicts(a, b, pair) if pair else []
+        held = hold_speaker(v)
+        if stack and b - a >= 2.5 and is_conversation(v):  # shorter stacks read as a glitch (openshorts)
+            plan.append((a, crop_x(last, W, H)[0], stack_geom(pair, W, H)))
+        elif held and held[0] is not None:
+            plan += [(a + i * WIN, crop_x(pair[k][0], W, H)[0], None) for i, k in enumerate(held)]
+            last = pair[held[-1]][0]
+        else:
+            xs = [f[0][0] for f in frames if f]
+            last = statistics.median(xs) if xs else last
+            plan.append((a, crop_x(last, W, H)[0], None))
+    return [p for i, p in enumerate(plan) if i == 0 or p[1:] != plan[i - 1][1:]], cw
 
 
-def x_expr(plan):
-    """ffmpeg crop x expression switching per scene: if(lt(t,t1),x0,if(lt(t,t2),x1,x2))."""
-    e = str(plan[-1][1])
+def stack_spans(plan, dur):
+    return [(t, (plan[i + 1][0] if i + 1 < len(plan) else dur)) for i, (t, _, g) in enumerate(plan) if g]
+
+
+def x_expr(plan, k=1):
+    """ffmpeg expression switching per plan entry on value plan[i][k]: if(lt(t,t1),x0,if(lt(t,t2),x1,x2))."""
+    e = str(plan[-1][k])
     for i in range(len(plan) - 2, -1, -1):
-        e = f"if(lt(t,{plan[i + 1][0]:.3f}),{plan[i][1]},{e})"
+        e = f"if(lt(t,{plan[i + 1][0]:.3f}),{plan[i][k]},{e})"
     return e
 
 
@@ -430,17 +570,26 @@ def edit(a):
         t0 = time.time()
         samples = sample_faces(det, path, s, e)
         cuts = scene_cuts(path, s, e)
-        plan, cw = crop_plan(samples, cuts, dur, W, H)
-        ass = out / f"clip_{n}.ass"
-        write_ass(ass, caption_events(words, s, e), banner_text(c).upper()[:60] if a.hook_overlay else "")
-        vf = f"crop={cw}:{H}:'{x_expr(plan)}':0,scale={OUT_W}:{OUT_H}:flags=lanczos,fps=30,ass={ass}"
+        verd = (lambda a_, b_, pair: talk_verdicts(path, s + a_, b_ - a_, pair, W, H)) if a.speakers else None
+        plan, cw = crop_plan(samples, cuts, dur, W, H, verd, a.stack)
+        spans, ass = stack_spans(plan, dur), out / f"clip_{n}.ass"
+        write_ass(ass, caption_events(words, s, e), banner_text(c).upper()[:60] if a.hook_overlay else "", spans)
+        base = f"crop={cw}:{H}:'{x_expr(plan)}':0,scale={OUT_W}:{OUT_H}:flags=lanczos"
+        if spans:  # stacked two-shot overlaid on the single crop where both speakers talk
+            st = [p for p in plan if p[2]]; gw, gh = st[0][2][:2]
+            half = lambda j: f"crop={gw}:{gh}:'{x_expr([(t, g[j]) for t, _, g in st])}':'{x_expr([(t, g[j + 1]) for t, _, g in st])}',scale={OUT_W}:{OUT_H // 2}:flags=lanczos"
+            en = "+".join(f"between(t,{t0:.3f},{t1:.3f})" for t0, t1 in spans)
+            vfa = ["-filter_complex", f"[0:v]split=3[c][t][b];[c]{base}[base];[t]{half(2)}[top];[b]{half(4)}[bot];"
+                   f"[top][bot]vstack[st];[base][st]overlay=0:0:enable='{en}',fps=30,ass={ass}[v]", "-map", "[v]", "-map", "0:a"]
+        else:
+            vfa = ["-vf", f"{base},fps=30,ass={ass}"]
         cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{s:.3f}", "-i", str(path), "-t", f"{dur:.3f}",
-               "-vf", vf, *enc, "-pix_fmt", "yuv420p", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000",
+               *vfa, *enc, "-pix_fmt", "yuv420p", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000",
                "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(out / f"clip_{n}.mp4")]
         subprocess.run(cmd, check=True)
         plans.append({"clip": n, "start": s, "end": e, "title": c.get("title"), "scene_cuts": cuts, "crop_plan": plan,
-                      "face_samples": len(samples), "face_hits": sum(x is not None for _, x in samples), "secs": round(time.time() - t0, 1)})
-        print(f"clip_{n}.mp4 {dur:.1f}s scenes={len(plan)} faces={plans[-1]['face_hits']}/{len(samples)} {time.time()-t0:.0f}s")
+                      "stacked": spans, "face_samples": len(samples), "face_hits": sum(bool(f) for _, f in samples), "secs": round(time.time() - t0, 1)})
+        print(f"clip_{n}.mp4 {dur:.1f}s scenes={len(cuts) + 1} crops={len(plan)} stacked={len(spans)} faces={plans[-1]['face_hits']}/{len(samples)} {time.time()-t0:.0f}s")
     det.close()
     save(out / "edit.json", plans)
 
@@ -505,6 +654,8 @@ def main(argv=None):
                    help="default: hermes if CLIP_HERMES_HOME is set, else claude")
     p.set_defaults(f=highlights)
     p = sp.add_parser("edit"); p.add_argument("id"); p.add_argument("--no-hook-overlay", dest="hook_overlay", action="store_false")
+    p.add_argument("--no-speakers", dest="speakers", action="store_false", help="no active-speaker crop in two-shots")
+    p.add_argument("--stack", action="store_true", help="stack both speakers when both talk in a two-shot")
     p.set_defaults(f=edit)
     p = sp.add_parser("qa"); p.add_argument("id"); p.set_defaults(f=qa)
     a = ap.parse_args(argv); a.f(a)

@@ -42,7 +42,7 @@ P="nice -n 10 .venv/bin/python clip.py"
 $P fetch URL --id ID       # work/ID/src.* (best <=2160p, retry capped at 1080p), meta.json (+ YouTube heatmap); --cookies FILE
 $P transcribe ID           # work/ID/transcript.json  (CUDA medium int8_float16, or CPU small int8; --device/--model)
 $P highlights ID           # work/ID/highlights.json  (--backend hermes|codex|claude; falls back to the others)
-$P edit ID                 # out/ID/clip_N.mp4 + clip_N.ass + edit.json
+$P edit ID                 # out/ID/clip_N.mp4 + clip_N.ass + edit.json  (--stack, --no-speakers)
 $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
 .venv/bin/python -m pytest -q
 ```
@@ -58,7 +58,12 @@ $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
   `caption` is the on-screen banner: it must add context, not repeat the spoken hook (falls back to `title` if it does).
   `validate()` snaps times to word boundaries, trims to <=45 s, extends slightly-short picks to >=20 s, drops overlaps/garbage, keeps 3.
 - **edit**: faces sampled 3x/s with MediaPipe on the clip range (one frame in RAM at a time), scene cuts via PySceneDetect,
-  one static 9:16 crop per scene centred on the median face x; ffmpeg `crop` with a per-scene `if(lt(t,..))` expression,
+  one static 9:16 crop per scene centred on the median face x; in a two-shot (two faces >=0.2 frame-width apart in >=half the
+  samples) the crop follows the active speaker: mouth-region frame difference / region contrast per 0.4 s window, counted
+  only where audio RMS >= 0.18 of the scene peak, a new speaker must win 3 windows in a row (cut backdated to the run start).
+  `--stack`: when both talk (each >= 20% of windows, scene >= 2.5 s) both are stacked 1080x960 each, captions on the seam.
+  Speaker logic ported from [mutonby/openshorts](https://github.com/mutonby/openshorts) (MIT, (c) 2024 OpenShorts);
+  their per-speaker percentile normalisation was replaced (it hid a continuous talker on short scenes); ffmpeg `crop` with a per-scene `if(lt(t,..))` expression,
   ASS karaoke captions (<=3 words, current word yellow, held through pauses < 1.2 s) + banner (`caption`, never the spoken hook) for the first 2.5 s, loudnorm to -14 LUFS.
 - **qa**: duration 20-45 s, 1080x1920, audio mean volume > -40 dB, caption events, face fully inside frame on >=60% of
   samples (2/s), >=3 words spoken in the first 2 s, first word not a filler (and/so/but/like/um/uh/you know).
