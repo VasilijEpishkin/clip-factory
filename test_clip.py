@@ -49,3 +49,11 @@ def test_caption_events_timing():
 
 def test_ass_time():
     assert ass_time(0) == "0:00:00.00" and ass_time(3723.456) == "1:02:03.46"
+
+
+def test_banner_never_repeats_spoken_hook():
+    from clip import banner_text
+    hook = "Did you always want to be an astronaut? I did."
+    assert banner_text({"hook": hook, "caption": "NASA astronaut on her childhood", "title": "T"}) == "NASA astronaut on her childhood"
+    assert banner_text({"hook": hook, "caption": "Always wanted to be an astronaut?", "title": "Knew at 3"}) == "Knew at 3"
+    assert banner_text({"hook": hook, "title": "Knew at 3"}) == "Knew at 3"

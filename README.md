@@ -26,11 +26,12 @@ $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
 
 ## How it works
 
-- **highlights**: transcript segments `[start-end] text` go to the LLM, which returns `[{start,end,hook,title,why}]`.
+- **highlights**: transcript segments `[start-end] text` go to the LLM, which returns `[{start,end,hook,caption,title,why}]`.
+  `caption` is the on-screen banner: it must add context, not repeat the spoken hook (falls back to `title` if it does).
   `validate()` snaps times to word boundaries, trims to <=45 s, extends slightly-short picks to >=20 s, drops overlaps/garbage, keeps 3.
 - **edit**: faces sampled 3x/s with MediaPipe on the clip range (one frame in RAM at a time), scene cuts via PySceneDetect,
   one static 9:16 crop per scene centred on the median face x; ffmpeg `crop` with a per-scene `if(lt(t,..))` expression,
-  ASS karaoke captions (<=3 words, current word yellow) + hook banner for the first 2.5 s, loudnorm to -14 LUFS.
+  ASS karaoke captions (<=3 words, current word yellow) + banner (`caption`, never the spoken hook) for the first 2.5 s, loudnorm to -14 LUFS.
 - **qa**: duration 20-45 s, 1080x1920, audio mean volume > -40 dB, caption events, face fully inside frame on >=60% of
   samples (2/s), >=3 words spoken in the first 2 s.
 

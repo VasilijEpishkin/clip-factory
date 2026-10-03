@@ -84,7 +84,9 @@ Rules:
 - self-contained: understandable without the rest of the video, ends on a finished thought;
 - clips must not overlap.
 Return ONLY a JSON array, no prose, no code fences:
-[{{"start": <sec>, "end": <sec>, "hook": "<the opening words>", "title": "<short catchy title>", "why": "<one line>"}}]
+[{{"start": <sec>, "end": <sec>, "hook": "<the opening words>", "caption": "<on-screen banner, 2-6 words>", "title": "<short catchy title>", "why": "<one line>"}}]
+"caption" is burned on screen over the first seconds while the hook is spoken: it must ADD context the words don't give
+(who is speaking, the stakes, the topic), never repeat or paraphrase the opening words.
 
 TRANSCRIPT:
 {transcript}
@@ -136,6 +138,16 @@ def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0):
         kept.append(c | {"start": round(s2, 2), "end": round(e2, 2), "llm_start": s, "llm_end": e})
         if len(kept) == n: break
     return kept
+
+
+def norm_words(t): return re.findall(r"[a-z0-9']+", t.lower())
+
+
+def banner_text(c):
+    """On-screen banner: the LLM `caption`, unless it just repeats the spoken hook; then the title. Never the hook."""
+    cap, hook = norm_words(c.get("caption") or ""), set(norm_words(c.get("hook") or ""))
+    if cap and sum(w in hook for w in cap) / len(cap) < 0.6: return c["caption"]
+    return c.get("title") or ""
 
 
 def highlights(a):
@@ -313,7 +325,7 @@ def edit(a):
         cuts = scene_cuts(path, s, e)
         plan, cw = crop_plan(samples, cuts, dur, W, H)
         ass = out / f"clip_{n}.ass"
-        write_ass(ass, caption_events(words, s, e), c.get("hook", "").upper()[:60] if a.hook_overlay else "")
+        write_ass(ass, caption_events(words, s, e), banner_text(c).upper()[:60] if a.hook_overlay else "")
         vf = f"crop={cw}:{H}:'{x_expr(plan)}':0,scale={OUT_W}:{OUT_H}:flags=lanczos,fps=30,ass={ass}"
         cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", f"{s:.3f}", "-i", str(path), "-t", f"{dur:.3f}",
                "-vf", vf, *enc, "-pix_fmt", "yuv420p", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11", "-ar", "48000",
