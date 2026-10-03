@@ -10,7 +10,13 @@ uv sync                                    # .venv with faster-whisper, scenedet
 mkdir -p tools && curl -sSfL -o tools/blaze_face_short_range.tflite \
   https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite
 ```
-Needs system `ffmpeg` with libass (`h264_nvenc` used when available, else libx264), `yt-dlp`, and `codex` or `claude` CLI.
+Needs system `ffmpeg` with libass (`h264_nvenc` used when available, else libx264), `yt-dlp`, and an LLM CLI:
+
+- `hermes` (default when configured): `export CLIP_HERMES_HOME=~/.hermes/profiles/<clip profile>` - a profile logged into
+  a **separate** Codex subscription. Runs `hermes -z <prompt> --provider openai-codex -m gpt-5.4-mini -t safe --ignore-rules --cli`
+  with `HERMES_HOME=$CLIP_HERMES_HOME`. Without the variable the backend is skipped (never the default profile: that is
+  the owner's main Codex account) and `claude -p` is used.
+- `codex` (`codex exec`, if installed and logged in), `claude` (`claude -p`).
 
 ### YouTube bot check ("Sign in to confirm you're not a bot")
 
@@ -35,7 +41,7 @@ Metadata (incl. `heatmap`) already works from this IP without either; format dow
 P="nice -n 10 .venv/bin/python clip.py"
 $P fetch URL --id ID       # work/ID/src.* (best <=2160p, retry capped at 1080p), meta.json (+ YouTube heatmap); --cookies FILE
 $P transcribe ID           # work/ID/transcript.json  (CUDA medium int8_float16, or CPU small int8; --device/--model)
-$P highlights ID           # work/ID/highlights.json  (--backend codex|claude; falls back to the other)
+$P highlights ID           # work/ID/highlights.json  (--backend hermes|codex|claude; falls back to the others)
 $P edit ID                 # out/ID/clip_N.mp4 + clip_N.ass + edit.json
 $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
 .venv/bin/python -m pytest -q

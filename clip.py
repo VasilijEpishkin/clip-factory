@@ -4,7 +4,7 @@
 Steps (files on disk between them, all under work/<id>/ and out/<id>/):
   fetch URL --id ID   -> work/ID/src.*, meta.json
   transcribe ID       -> work/ID/transcript.json   (faster-whisper, word timestamps)
-  highlights ID       -> work/ID/highlights.json   (LLM: codex exec, fallback claude -p)
+  highlights ID       -> work/ID/highlights.json   (LLM: hermes/codex profile if CLIP_HERMES_HOME, else claude -p)
   edit ID             -> out/ID/clip_N.mp4 (+ .ass)  (cut + 9:16 face reframe + burned captions)
   qa ID               -> out/ID/qa.json (+ 2 PNG frames per clip)
 """
@@ -152,7 +152,31 @@ def llm_claude(prompt):
                           check=True, capture_output=True, timeout=900).stdout
 
 
-BACKENDS = {"codex": llm_codex, "claude": llm_claude}
+HERMES_PY = Path.home() / ".hermes/hermes-agent/venv/bin/python"
+
+
+def hermes_cmd(prompt):
+    return [str(HERMES_PY), "-m", "hermes_cli.main", "-z", prompt, "--provider", "openai-codex", "-m", "gpt-5.4-mini",
+            "-t", "safe", "--ignore-rules", "--cli"]
+
+
+def llm_hermes(prompt):
+    """Codex subscription via a Hermes profile. Only with an explicit profile home: the default profile is the
+    owner's main Codex account and must never be used here."""
+    home = os.environ.get("CLIP_HERMES_HOME")
+    if not home: raise RuntimeError("CLIP_HERMES_HOME not set")
+    # ponytail: prompt goes in argv (Linux caps one arg at 128 KB, ~2.5 h of transcript); stdin if that's hit
+    return subprocess.run(hermes_cmd(prompt), env=os.environ | {"HERMES_HOME": home}, text=True, check=True,
+                          capture_output=True, timeout=900, stdin=subprocess.DEVNULL).stdout
+
+
+BACKENDS = {"hermes": llm_hermes, "codex": llm_codex, "claude": llm_claude}
+
+
+def backend_order(first):
+    """Backends to try: `first`, then the rest; hermes only when CLIP_HERMES_HOME is set, codex only if installed."""
+    ok = {"hermes": bool(os.environ.get("CLIP_HERMES_HOME")), "codex": bool(shutil.which("codex")), "claude": True}
+    return [b for b in [first] + [b for b in BACKENDS if b != first] if ok[b]]
 
 
 def parse_json_list(txt):
@@ -238,9 +262,7 @@ def highlights(a):
     hooks = load(HOOKS) if HOOKS.exists() else []
     prompt = PROMPT.format(n=N_CLIPS + 3, lo=MIN_LEN, hi=MAX_LEN, transcript=lines,  # ask extra, some fail validation
                            hook_types="|".join(HOOK_TYPES), extra=hooks_block(hooks) + peaks_block(peaks))
-    order = [a.backend] + [b for b in BACKENDS if b != a.backend]
-    for b in order:
-        if b == "codex" and not shutil.which("codex"): continue
+    for b in backend_order(a.backend or ("hermes" if os.environ.get("CLIP_HERMES_HOME") else "claude")):
         t0 = time.time()
         try:
             raw = BACKENDS[b](prompt)
@@ -479,7 +501,8 @@ def main(argv=None):
     p.add_argument("--cookies", help="Netscape cookies.txt of a SEPARATE account (YouTube bot check)"); p.set_defaults(f=fetch)
     p = sp.add_parser("transcribe"); p.add_argument("id"); p.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
     p.add_argument("--model"); p.set_defaults(f=transcribe)
-    p = sp.add_parser("highlights"); p.add_argument("id"); p.add_argument("--backend", default="codex", choices=list(BACKENDS))
+    p = sp.add_parser("highlights"); p.add_argument("id"); p.add_argument("--backend", choices=list(BACKENDS),
+                   help="default: hermes if CLIP_HERMES_HOME is set, else claude")
     p.set_defaults(f=highlights)
     p = sp.add_parser("edit"); p.add_argument("id"); p.add_argument("--no-hook-overlay", dest="hook_overlay", action="store_false")
     p.set_defaults(f=edit)

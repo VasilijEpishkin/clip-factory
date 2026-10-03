@@ -110,3 +110,21 @@ def test_hooks_block_and_hook_type():
     assert hooks_block([]) == ""
     [c] = validate([{"start": 10, "end": 40, "hook_type": "made_up"}], WORDS)
     assert c["hook_type"] == "other"
+
+
+def test_hermes_backend_never_uses_default_profile(monkeypatch):
+    import clip, subprocess
+    monkeypatch.delenv("CLIP_HERMES_HOME", raising=False)
+    monkeypatch.setattr(clip.shutil, "which", lambda x: None)
+    assert clip.backend_order("hermes") == ["claude"]
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: calls.append(1))
+    try: clip.llm_hermes("p"); assert False
+    except RuntimeError: pass
+    assert not calls
+    monkeypatch.setenv("CLIP_HERMES_HOME", "/x/profiles/clip")
+    assert clip.backend_order("hermes") == ["hermes", "claude"]
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **k: calls.append((cmd, k["env"]["HERMES_HOME"])) or subprocess.CompletedProcess(cmd, 0, "[]"))
+    assert clip.llm_hermes("PROMPT") == "[]"
+    cmd, home = calls[0]
+    assert home == "/x/profiles/clip" and cmd[cmd.index("-z") + 1] == "PROMPT" and "openai-codex" in cmd
