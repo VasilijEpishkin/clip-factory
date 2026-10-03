@@ -222,19 +222,25 @@ def face_detector():
         base_options=BaseOptions(model_asset_path=str(FACE_MODEL)), min_detection_confidence=0.5))
 
 
-def faces_in(det, frame_bgr):
-    """Detected faces as (cx, cy, w, h) normalised, largest first."""
+def faces_in(det, frame_bgr, min_score=0.8):
+    """Detected faces as (cx, cy, w, h) normalised, best first.
+    BlazeFace short-range sees only big faces, so also scan overlapping square tiles (2/3 of the short side)."""
+    # ponytail: ~9-11 detector calls per frame; a full-range/YuNet detector would need one
     import cv2, mediapipe as mp
-    h, w = frame_bgr.shape[:2]
-    small = cv2.resize(frame_bgr, (640, int(640 * h / w)))
-    img = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(small, cv2.COLOR_BGR2RGB))
-    sw, sh = small.shape[1], small.shape[0]
-    out = [((b.origin_x + b.width / 2) / sw, (b.origin_y + b.height / 2) / sh, b.width / sw, b.height / sh)
-           for b in (d.bounding_box for d in det.detect(img).detections)]
-    return sorted(out, key=lambda f: -f[2] * f[3])
+    H, W = frame_bgr.shape[:2]
+    t = min(H, W) * 2 // 3
+    boxes = [(0, 0, W, H)] + [(x, y, t, t) for x in range(0, W - t + 1, t // 2) for y in range(0, H - t + 1, t // 2)]
+    rgb, out = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB), []
+    for x0, y0, w, h in boxes:
+        img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb[y0:y0 + h, x0:x0 + w].copy())
+        for d in det.detect(img).detections:
+            if d.categories[0].score < min_score: continue
+            b = d.bounding_box
+            out.append((d.categories[0].score, ((x0 + b.origin_x + b.width / 2) / W, (y0 + b.origin_y + b.height / 2) / H, b.width / W, b.height / H)))
+    return [f for _, f in sorted(out, key=lambda o: -o[0])]
 
 
-def sample_faces(det, path, start, end, fps_sample=3.0):
+def sample_faces(det, path, start, end, fps_sample=2.0):
     """[(t_rel, cx or None)] sampled at fps_sample; reads frames sequentially (one in RAM at a time)."""
     import cv2
     cap = cv2.VideoCapture(str(path))
@@ -317,6 +323,7 @@ def edit(a):
         plans.append({"clip": n, "start": s, "end": e, "title": c.get("title"), "scene_cuts": cuts, "crop_plan": plan,
                       "face_samples": len(samples), "face_hits": sum(x is not None for _, x in samples), "secs": round(time.time() - t0, 1)})
         print(f"clip_{n}.mp4 {dur:.1f}s scenes={len(plan)} faces={plans[-1]['face_hits']}/{len(samples)} {time.time()-t0:.0f}s")
+    det.close()
     save(out / "edit.json", plans)
 
 
@@ -363,6 +370,7 @@ def qa(a):
         r["ok"] = all(r["checks"].values())
         report.append(r)
         print(f"clip_{n}: {'PASS' if r['ok'] else 'FAIL'} {r['checks']}")
+    det.close()
     save(out / "qa.json", report)
 
 
