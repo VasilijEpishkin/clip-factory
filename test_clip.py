@@ -99,3 +99,14 @@ def test_heatmap_peaks_and_preference():
     cands = [{"start": 100, "end": 125}, {"start": 0, "end": 25}, {"start": 30, "end": 55}]
     got = validate(cands, WORDS, n=2, peaks=[(40.0, 50.0, .9)])
     assert [round(c["start"]) for c in got] == [30, 100]  # peak overlap first, then LLM order
+
+
+def test_hooks_block_and_hook_type():
+    from clip import hooks_block
+    hooks = [{"hook_type": "question", "template": "Did you {X}?", "example": "Did you know?", "evidence": "lift 2x"},
+             {"bad": 1}] + [{"hook_type": "contrarian", "template": f"t{i}"} for i in range(30)]
+    b = hooks_block(hooks)
+    assert b.count("\n") == 16 and b.splitlines()[1] == '- question: "Did you {X}?" e.g. "Did you know?" [lift 2x]'  # header+14, blank
+    assert hooks_block([]) == ""
+    [c] = validate([{"start": 10, "end": 40, "hook_type": "made_up"}], WORDS)
+    assert c["hook_type"] == "other"

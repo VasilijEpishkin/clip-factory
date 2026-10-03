@@ -1,0 +1,7 @@
+[
+ {"hook_type": "question", "template": "Did you ever {surprising personal question}?", "example": "Have you ever wondered why coffee tastes worse on planes?", "evidence": "PLACEHOLDER: generic pattern, not measured"},
+ {"hook_type": "contrarian", "template": "{Common belief} is wrong: {reason}", "example": "Working harder is wrong: rest is what makes you faster", "evidence": "PLACEHOLDER: generic pattern, not measured"},
+ {"hook_type": "curiosity_gap", "template": "The one thing nobody tells you about {topic}", "example": "The one thing nobody tells you about buying a house", "evidence": "PLACEHOLDER: generic pattern, not measured"},
+ {"hook_type": "confession_story", "template": "I {did X} for {N} years before I realised {Y}", "example": "I trained wrong for 5 years before I realised sleep mattered more", "evidence": "PLACEHOLDER: generic pattern, not measured"},
+ {"hook_type": "stakes_warning", "template": "If you {do X}, {bad consequence}", "example": "If you sign this without reading clause 4, you lose the deposit", "evidence": "PLACEHOLDER: generic pattern, not measured"}
+]

@@ -29,6 +29,9 @@ $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
 - **highlights**: transcript segments `[start-end] text` go to the LLM, which returns `[{start,end,hook,caption,title,why}]`.
   If `meta.json` has a YouTube `heatmap` ("Most replayed", saved by `fetch`), the top 8 buckets (merged, first bucket
   skipped) go into the prompt and `validate()` keeps candidates overlapping a peak first.
+  If `hooks.json` exists (`[{hook_type, template, example, evidence}]`, written by the trends profile), up to 15 lines
+  of it go into the prompt; every clip gets a `hook_type` from a closed taxonomy (unknown -> `other`), copied to `qa.json`.
+  The committed `hooks.json` holds 5 generic PLACEHOLDER patterns, not measured data.
   `caption` is the on-screen banner: it must add context, not repeat the spoken hook (falls back to `title` if it does).
   `validate()` snaps times to word boundaries, trims to <=45 s, extends slightly-short picks to >=20 s, drops overlaps/garbage, keeps 3.
 - **edit**: faces sampled 3x/s with MediaPipe on the clip range (one frame in RAM at a time), scene cuts via PySceneDetect,

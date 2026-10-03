@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent
 NODE = Path.home() / ".nvm/versions/node/v22.23.2/bin/node"
 YTDLP = shutil.which("yt-dlp") or str(Path.home() / ".local/bin/yt-dlp")
 FACE_MODEL = ROOT / "tools/blaze_face_short_range.tflite"
+HOOKS = ROOT / "hooks.json"  # [{hook_type, template, example, evidence}], written by the trends profile
 MIN_LEN, MAX_LEN, N_CLIPS = 20.0, 45.0, 3
 OUT_W, OUT_H = 1080, 1920
 
@@ -87,7 +88,7 @@ Rules:
 - self-contained: understandable without the rest of the video, ends on a finished thought;
 - clips must not overlap.
 Return ONLY a JSON array, no prose, no code fences:
-[{{"start": <sec>, "end": <sec>, "hook": "<the opening words>", "caption": "<on-screen banner, 2-6 words>", "title": "<short catchy title>", "why": "<one line>"}}]
+[{{"start": <sec>, "end": <sec>, "hook": "<the opening words>", "hook_type": "<one of: {hook_types}>", "caption": "<on-screen banner, 2-6 words>", "title": "<short catchy title>", "why": "<one line>"}}]
 "caption" is burned on screen over the first seconds while the hook is spoken: it must ADD context the words don't give
 (who is speaking, the stakes, the topic), never repeat or paraphrase the opening words.
 
@@ -107,6 +108,21 @@ def heatmap_peaks(hm, k=8):
         else:
             peaks.append((b["start_time"], b["end_time"], b["value"]))
     return peaks
+
+
+# closed taxonomy from ~/.hermes/docs/2026-10-03-trends-profile-inputs.md 1.3, so stats per class stay comparable
+HOOK_TYPES = ["question", "curiosity_gap", "contrarian", "number_list", "pattern_interrupt", "in_medias_res",
+              "confession_story", "pov_relatable", "proof_first", "contrast", "direct_callout", "stakes_warning",
+              "reveal_countdown", "other"]
+
+
+def hooks_block(hooks, max_lines=15):
+    """Prompt block from hooks.json entries: a header + up to max_lines-1 patterns."""
+    rows = [h for h in hooks if isinstance(h, dict) and h.get("hook_type") and h.get("template")][:max_lines - 1]
+    if not rows: return ""
+    return ("PROVEN HOOK PATTERNS (prefer clips whose opening fits one; set hook_type accordingly):\n"
+            + "\n".join(f'- {h["hook_type"]}: "{h["template"]}"' + (f' e.g. "{h["example"]}"' if h.get("example") else "")
+                         + (f' [{h["evidence"]}]' if h.get("evidence") else "") for h in rows) + "\n\n")
 
 
 def peaks_block(peaks):
@@ -194,7 +210,8 @@ def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0, peaks=(
             e2 = next((x for x in more if x - s2 >= lo), more[-1] if more else e2)
             if e2 - s2 < lo: continue
         if any(s2 < k["end"] and k["start"] < e2 for k in kept): continue
-        kept.append(c | {"start": round(s2, 2), "end": round(e2, 2), "llm_start": s, "llm_end": e})
+        kept.append(c | {"start": round(s2, 2), "end": round(e2, 2), "llm_start": s, "llm_end": e,
+                         "hook_type": c.get("hook_type") if c.get("hook_type") in HOOK_TYPES else "other"})
         if len(kept) == n: break
     return kept
 
@@ -211,8 +228,9 @@ def highlights(a):
     lines = "\n".join(f"[{s['start']:.1f}-{s['end']:.1f}] {s['text']}" for s in tr["segments"])
     meta = wdir(a.id) / "meta.json"
     peaks = heatmap_peaks(load(meta).get("heatmap") or []) if meta.exists() else []
+    hooks = load(HOOKS) if HOOKS.exists() else []
     prompt = PROMPT.format(n=N_CLIPS + 3, lo=MIN_LEN, hi=MAX_LEN, transcript=lines,  # ask extra, some fail validation
-                           extra=peaks_block(peaks))
+                           hook_types="|".join(HOOK_TYPES), extra=hooks_block(hooks) + peaks_block(peaks))
     order = [a.backend] + [b for b in BACKENDS if b != a.backend]
     for b in order:
         if b == "codex" and not shutil.which("codex"): continue
@@ -433,7 +451,7 @@ def qa(a):
         cap.release()
         first = [w for w in words if c["start"] - 0.05 <= w["s"] < c["start"] + 2]
         first2 = [w["w"] for w in first]
-        r = {"clip": n, "file": str(p), "title": c.get("title"), "duration": round(dur, 2),
+        r = {"clip": n, "file": str(p), "title": c.get("title"), "hook_type": c.get("hook_type"), "duration": round(dur, 2),
              "resolution": f"{v.get('width')}x{v.get('height')}", "audio_mean_db": vol, "caption_events": n_caps,
              "face_in_frame_ratio": round(hits / tot, 2) if tot else 0, "first_2s_words": " ".join(first2)}
         r["checks"] = {"duration": MIN_LEN - 0.5 <= dur <= MAX_LEN + 0.5, "resolution": r["resolution"] == f"{OUT_W}x{OUT_H}",
