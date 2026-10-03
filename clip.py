@@ -33,7 +33,8 @@ def norm_words(t): return re.findall(r"[a-z0-9']+", t.lower())
 def fetch(a):
     d = wdir(a.id); d.mkdir(parents=True, exist_ok=True)
     base = [YTDLP, "--js-runtimes", f"node:{NODE}", "--no-playlist", "-o", str(d / "src.%(ext)s"),
-            "--print-json", "--no-simulate"] + (["--cookies", a.cookies] if a.cookies else [])
+            "--print-json", "--no-simulate"] + (["--cookies", a.cookies] if a.cookies else
+                                                ["--cookies-from-browser", a.browser] if a.browser else [])
     # up to 4K: a 9:16 crop of 1080p is 608x1080 and gets upscaled 1.78x; of 2160p it is downscaled
     for res in ("2160", "1080"):
         r = subprocess.run(base + ["-S", f"res:{res},vcodec:vp9", a.url], capture_output=True, text=True)
@@ -647,7 +648,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = ap.add_subparsers(dest="cmd", required=True)
     p = sp.add_parser("fetch"); p.add_argument("url"); p.add_argument("--id", required=True)
-    p.add_argument("--cookies", help="Netscape cookies.txt of a SEPARATE account (YouTube bot check)"); p.set_defaults(f=fetch)
+    p.add_argument("--cookies", help="Netscape cookies.txt of a SEPARATE account (YouTube bot check)")
+    # the VPN exit IP is bot-flagged: without a logged-in session every client gets "confirm you're not a bot"
+    p.add_argument("--browser", default="chrome", help="browser to read YouTube cookies from ('' to disable)")
+    p.set_defaults(f=fetch)
     p = sp.add_parser("transcribe"); p.add_argument("id"); p.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
     p.add_argument("--model"); p.set_defaults(f=transcribe)
     p = sp.add_parser("highlights"); p.add_argument("id"); p.add_argument("--backend", choices=list(BACKENDS),
