@@ -121,11 +121,10 @@ def validate(cands, words, lo=MIN_LEN, hi=MAX_LEN, n=N_CLIPS, slack=3.0):
         try: s, e = float(c["start"]), float(c["end"])
         except (KeyError, TypeError, ValueError): continue
         if e <= s: continue
-        # start = first word starting at/after s-0.5; end = last word ending at/before e+0.5
-        starts = [w for w in words if w["s"] >= s - 0.5]
-        ends = [w for w in words if w["e"] <= e + 0.5]
-        if not starts or not ends: continue
-        s2, e2 = starts[0]["s"], ends[-1]["e"]
+        # snap to the nearest word start / end (LLM sees segment times, which coincide with word times)
+        s2 = min(words, key=lambda w: abs(w["s"] - s))["s"]
+        e2 = min(words, key=lambda w: abs(w["e"] - e))["e"]
+        if abs(s2 - s) > 2 or abs(e2 - e) > 2 or e2 <= s2: continue
         if e2 - s2 > hi:  # too long: trim to last word end within hi
             e2 = max(w["e"] for w in words if s2 < w["e"] <= s2 + hi)
         if e2 - s2 < lo - slack or e2 - s2 < 5: continue

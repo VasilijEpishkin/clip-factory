@@ -4,7 +4,7 @@ WORDS = [{"w": f"w{i}", "s": i * 0.5, "e": i * 0.5 + 0.4} for i in range(400)]  
 
 
 def test_validate_snaps_to_word_boundaries():
-    [c] = validate([{"start": 10.8, "end": 40.3}], WORDS)
+    [c] = validate([{"start": 10.6, "end": 40.3}], WORDS)
     assert (c["start"], c["end"]) == (10.5, 40.4)
 
 
@@ -19,7 +19,7 @@ def test_validate_drops_bad_overlap_and_garbage():
     cands = [{"start": 0, "end": 30}, {"start": 10, "end": 35}, {"start": "x"}, {"start": 50, "end": 52},
              {"start": 150, "end": 500}, {"start": 60, "end": 90}]
     got = validate(cands, WORDS)
-    assert [round(c["start"]) for c in got] == [0, 150, 60]
+    assert [round(c["start"]) for c in got] == [0, 60]  # overlap, garbage, too short, past-the-end dropped
     assert all(c["end"] <= 199.9 for c in got)
 
 
