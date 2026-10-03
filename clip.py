@@ -151,7 +151,7 @@ def highlights(a):
             raw = BACKENDS[b](prompt)
             clips = validate(parse_json_list(raw), all_words(tr))
         except Exception as e:
-            print(f"{b} failed: {e}", file=sys.stderr); continue
+            print(f"{b} failed: {e} {(getattr(e, 'stderr', '') or '')[-300:]}", file=sys.stderr); continue
         if clips:
             save(wdir(a.id) / "highlights.json", {"backend": b, "secs": round(time.time() - t0, 1), "raw": raw, "clips": clips})
             for c in clips: print(f"{c['start']:7.1f}-{c['end']:7.1f} ({c['end']-c['start']:.0f}s) {c['title']}")
