@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "policy": "Optional upstream applications; install outside the clip-factory base runtime. Pin a verified release or commit after a successful pilot.",
+  "profiles": {
+    "local-generation": ["comfyui", "freefield"],
+    "voice-production": ["voicestudio"],
+    "character-mocap": ["mocapanything-v2"],
+    "host-dictation": ["openwhispr"],
+    "desktop-exploration": ["open-generative-ai"]
+  },
+  "tools": [
+    {"id":"comfyui","name":"ComfyUI","source":"https://github.com/comfyanonymous/ComfyUI","install":"official manual install","scope":"separate GPU runtime","status":"optional-pilot"},
+    {"id":"freefield","name":"FreeField","source":"https://github.com/droppedmyza/freefield","install":"upstream quickstart; installs ComfyUI and downloads model weights","scope":"inside isolated ComfyUI runtime","status":"optional-pilot"},
+    {"id":"open-generative-ai","name":"Open Generative AI","source":"https://github.com/Anil-matcha/Open-Generative-AI","install":"official desktop release","scope":"standalone desktop application","status":"optional-evaluation"},
+    {"id":"voicestudio","name":"VoiceStudio","source":"https://github.com/debpalash/VoiceStudio","install":"official desktop release or documented source setup","scope":"standalone voice application","status":"optional-pilot"},
+    {"id":"openwhispr","name":"OpenWhispr","source":"https://github.com/OpenWhispr/openwhispr","install":"official desktop release","scope":"host application","status":"optional"},
+    {"id":"mocapanything-v2","name":"MoCapAnything V2","source":"https://github.com/phongdaot/MocapAnything","install":"upstream RUN.md; fetch model weights separately","scope":"separate Python/GPU environment","status":"specialist-pilot"},
+    {"id":"comfyui-ai-assistant","name":"ComfyUI AI Assistant (CrazyDashTool)","source":"https://github.com/CrazyDashTool/ComfyUI-AI-Assistant","install":"ComfyUI custom node; review code and provider configuration first","scope":"inside ComfyUI","status":"identity-confirmation-needed"},
+    {"id":"agenty","name":"AgentY","source":null,"install":null,"scope":null,"status":"upstream-not-identified"}
+  ]
+}
