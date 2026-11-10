@@ -1,0 +1,16 @@
+{
+  "sources": [
+    {"name":"ffmpeg-skill","url":"https://github.com/kajisho5/ffmpeg-skill.git","revision":"v2.17.4","skills":[""]},
+    {"name":"video-shotcraft","url":"https://github.com/Vincentwei1021/video-shotcraft.git","revision":"13c74a707786872a18e3317e48c5c94011027620","skills":[""]},
+    {"name":"anything2explainer","url":"https://github.com/Vincentwei1021/anything2explainer.git","revision":"735c79c8724e897e8971cd59dde7e5aa11e4d6ce","skills":[""]},
+    {"name":"youtube-agent-skill","url":"https://github.com/Jakeschincariol/youtube-agent-skill.git","revision":"a2feb2104981a375ffd4f87ee04f4f5344ac43c6","skills":["skills/yt-audit","skills/yt-chapters","skills/yt-comment","skills/yt-edit","skills/yt-package","skills/yt-plan","skills/yt-retention","skills/yt-script","skills/yt-seo","skills/yt-shorts","skills/yt-viral"]},
+    {"name":"brag","url":"https://github.com/latent-spaces/brag.git","revision":"069432cac935ed1895859df201c31436c07fb74e","skills":["skills/brag","skills/brag-slim"]},
+    {"name":"prompt-master","url":"https://github.com/nidhinjs/prompt-master.git","revision":"769bf64d8e11f78fee2d183ad8891f9403f365e6","skills":[""]},
+    {"name":"seedance-2-prompts-search-skill","url":"https://github.com/YouMind-OpenLab/seedance-2-prompts-search-skill.git","revision":"97cab080d6cb6a86dcbee715762dc5264a0b2e7e","skills":[""]},
+    {"name":"youmind-codex-plugin","url":"https://github.com/YouMind-OpenLab/youmind-codex-plugin.git","revision":"eaf595539a929008b44e877baf131d6bc864debd","skills":["youmind/skills/create-image","youmind/skills/create-slides","youmind/skills/create-video","youmind/skills/use-youmind-workspace"]},
+    {"name":"last30days-skill","url":"https://github.com/mvanhorn/last30days-skill.git","revision":"71dc2a1529f23dfe7b0d0e3b3e11d4a7e8afd428","skills":["skills/last30days"]},
+    {"name":"marketingskills","url":"https://github.com/coreyhaines31/marketingskills.git","revision":"88c79f6528a9347420e57ceb1fff9a60de651768","skills":["skills"]},
+    {"name":"no-ai-slop","url":"https://github.com/petergyang/no-ai-slop.git","revision":"000650b156983f5159695b441477f4e63b25dc85","skills":["skills/no-ai-slop"]},
+    {"name":"earshot","url":"https://github.com/Leonxlnx/earshot.git","revision":"591fa3e028032e6dce56620a20e932e35667e8d8","skills":["skills/earshot","skills/real-sound"]}
+  ]
+}

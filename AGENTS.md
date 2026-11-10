@@ -1,5 +1,9 @@
 # clip-factory
 
+Репозиторий включает код медиастудии, каталог инструментов и установщик
+проектных скиллов. Для новой машины следуй README.md и docs/studio-stack.md.
+Установка скиллов: `python3 agent-stack/install.py .`.
+
 ## Анализ рилсов / видео по ссылке (MCP `video-analyzer`)
 
 Пользователь кидает ссылки на Instagram Reels (и YouTube), нужно вытащить из них информацию. Инструмент: MCP-сервер `video-analyzer` (mcp-video-analyzer), настроен в `.mcp.json`: Whisper `medium` на GPU через `tools/whisper-cli`, куки Instagram в `cookies.txt` (секрет, в git не класть), куки YouTube читаются из Chrome.
@@ -22,3 +26,7 @@
 
 ## Gemini <-> агенты через Google Drive
 Протокол обмена (папка ClipFactory на Диске, Gemini Tasks генерирует фото/видео, агент монтирует): `docs/gemini-bridge.md`. Текст задачи для Gemini: `docs/gemini-task-prompt.md`.
+
+Интеграции MCP, плагины и внешние генераторы подключай по `docs/studio-stack.md`.
+Не коммить ключи, OAuth, cookies, локальные конфиги агентов, модели, кэши,
+рабочие видео и рендеры.

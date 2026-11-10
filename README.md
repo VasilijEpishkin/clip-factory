@@ -1,7 +1,9 @@
 # clip-factory
 
-Local prototype: long video -> 3 short vertical (1080x1920) clips with face reframe and word-level burned captions.
-Based on section 4.4 of `~/.hermes/docs/2026-10-03-clipping-business-research.md`. Nothing is uploaded anywhere.
+Local video pipeline and production workspace: long video -> 3 short vertical
+(1080x1920) clips with face reframe and word-level burned captions. The pipeline
+does not publish rendered output; publishing integrations are configured
+separately per device.
 
 ## Setup
 
@@ -21,8 +23,9 @@ mkdir -p tools && curl -sSfL -o tools/blaze_face_short_range.tflite \
 To install the project's pinned agent skills:
 
 ```
-git clone https://github.com/VasilijEpishkin/clip-factory-agent-tool-stack /tmp/clip-factory-agent-tool-stack
-python3 /tmp/clip-factory-agent-tool-stack/install.py .
+python3 agent-stack/install.py .
+mkdir -p .claude
+ln -s ../.agents/skills .claude/skills
 ```
 
 Account login, MCP configuration, and browser cookies are per-device and must
@@ -100,7 +103,10 @@ disabled, use the current WSL address from `hostname -I`, for example
 from Explorer; it starts the WSL service and opens the browser.
 
 The project-local `.agents/skills/` directory connects the imported YouTube,
-video-shotcraft, brag, prompt-master, Seedance, and YouMind workflows.
+video-shotcraft, brag, prompt-master, Seedance, and YouMind workflows. The
+catalog of tools, plugins, MCP integrations, and per-agent setup is in
+[`docs/studio-stack.md`](docs/studio-stack.md); pinned skill sources are in
+[`agent-stack/sources.json`](agent-stack/sources.json).
 
 ## How it works
 
