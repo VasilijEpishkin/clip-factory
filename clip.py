@@ -157,7 +157,7 @@ HERMES_PY = Path.home() / ".hermes/hermes-agent/venv/bin/python"
 
 
 def hermes_cmd(prompt):
-    return [str(HERMES_PY), "-m", "hermes_cli.main", "-z", prompt, "--provider", "openai-codex", "-m", "gpt-5.4-mini",
+    return [str(HERMES_PY), "-m", "hermes_cli.main", "-z", prompt,  # provider+model: the profile's config (gpt-5.4-mini: 400 on ChatGPT accounts)
             "-t", "safe", "--ignore-rules", "--cli"]
 
 

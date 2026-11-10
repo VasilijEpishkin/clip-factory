@@ -127,7 +127,7 @@ def test_hermes_backend_never_uses_default_profile(monkeypatch):
     monkeypatch.setattr(subprocess, "run", lambda cmd, **k: calls.append((cmd, k["env"]["HERMES_HOME"])) or subprocess.CompletedProcess(cmd, 0, "[]"))
     assert clip.llm_hermes("PROMPT") == "[]"
     cmd, home = calls[0]
-    assert home == "/x/profiles/clip" and cmd[cmd.index("-z") + 1] == "PROMPT" and "openai-codex" in cmd
+    assert home == "/x/profiles/clip" and cmd[cmd.index("-z") + 1] == "PROMPT" and "--provider" not in cmd  # provider+model from the profile config
 
 
 L, R = (0.3, 0.4, 0.08, 0.15), (0.7, 0.4, 0.08, 0.15)  # two seated faces (cx, cy, w, h)

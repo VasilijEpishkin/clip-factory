@@ -5,10 +5,31 @@ requires-python = ">=3.11"
 dependencies = [
     "faster-whisper>=1.2.1",
     "mediapipe>=1.0.1",
-    "nvidia-cublas-cu12>=12.9.2.10",
+    # 12.8 to match torch cu128 (the driver 572.x tops out at CUDA 12.8)
+    "nvidia-cublas-cu12>=12.8",
     "nvidia-cudnn-cu12==9.*",
     "scenedetect[opencv-headless]>=0.7.1",
+    "whisper-ctranslate2>=0.5.8",
+    # footage analysis: local vision-language model (scripts/vlm_ask.py)
+    "torch>=2.11",
+    "torchvision>=0.26",
+    "transformers>=5.22",
+    "accelerate>=1.15",
+    "bitsandbytes>=0.50",
+    "qwen-vl-utils>=0.0.14",
+    # editable timeline export (FCPXML / Resolve)
+    "opentimelineio>=0.18",
+    "otio-fcpx-xml-adapter>=1.0",
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
 
 [dependency-groups]
 dev = [

@@ -5,16 +5,42 @@ Based on section 4.4 of `~/.hermes/docs/2026-10-03-clipping-business-research.md
 
 ## Setup
 
+Supported baseline: Linux or WSL2, Python 3.11+, `uv`, Node.js 22+, npm, and
+FFmpeg/ffprobe with libass. NVIDIA CUDA is optional; transcription has a CPU
+fallback. On a fresh clone install system tools first, then reproduce the locked
+Python and JavaScript environments:
+
 ```
-uv sync                                    # .venv with faster-whisper, scenedetect, mediapipe, cuBLAS/cuDNN wheels
+uv sync
+cd remotion && npm ci && cd ..
+cd hyperframes && npm ci && cd ..
 mkdir -p tools && curl -sSfL -o tools/blaze_face_short_range.tflite \
   https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite
+```
+
+To install the project's pinned agent skills:
+
+```
+git clone https://github.com/VasilijEpishkin/clip-factory-agent-tool-stack /tmp/clip-factory-agent-tool-stack
+python3 /tmp/clip-factory-agent-tool-stack/install.py .
+```
+
+Account login, MCP configuration, and browser cookies are per-device and must
+be configured locally; never copy `.mcp.json`, OAuth files, or cookies from
+another machine.
+
+For Windows, run the project inside WSL2 so FFmpeg, Python, Node, and skill
+symlinks share the same filesystem.
+
+```
+ffmpeg -version && ffprobe -version        # confirm the system runtime
+node --version && uv --version
 ```
 Needs system `ffmpeg` with libass (`h264_nvenc` used when available, else libx264), `yt-dlp`, and an LLM CLI:
 
 - `hermes` (default when configured): `export CLIP_HERMES_HOME=~/.hermes/profiles/<clip profile>` - a profile logged into
-  a **separate** Codex subscription. Runs `hermes -z <prompt> --provider openai-codex -m gpt-5.4-mini -t safe --ignore-rules --cli`
-  with `HERMES_HOME=$CLIP_HERMES_HOME`. Without the variable the backend is skipped (never the default profile: that is
+  a **separate** Codex subscription. Runs `hermes -z <prompt> -t safe --ignore-rules --cli`
+  with `HERMES_HOME=$CLIP_HERMES_HOME`; provider and model are that profile's `model:` config (`gpt-5.4-mini` is rejected for ChatGPT-account Codex). Without the variable the backend is skipped (never the default profile: that is
   the owner's main Codex account) and `claude -p` is used.
 - `codex` (`codex exec`, if installed and logged in), `claude` (`claude -p`).
 
@@ -24,7 +50,7 @@ Two layers, neither guaranteed. Prefer the rights holder's source file from the 
 1. PO tokens via [bgutil-ytdlp-pot-provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) (GPL-3.0; we only run it,
    no code copied). The plugin is a pip package and is installed into the yt-dlp uv tool (2026-10-03):
    `uv pip install --python ~/.local/share/uv/tools/yt-dlp/bin/python bgutil-ytdlp-pot-provider==2.0.1`.
-   It also needs a token provider; script mode works without Docker (Node >= 22, already present), **not built yet**:
+   It also needs a token provider; script mode works without Docker (Node >= 22, already present), **built 2026-11-03** (`~/bgutil-ytdlp-pot-provider`, script-node provider detected by yt-dlp):
    ```
    git clone --single-branch --branch 2.0.1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git ~/bgutil-ytdlp-pot-provider
    cd ~/bgutil-ytdlp-pot-provider/server && npm ci && npx tsc     # -> build/generate_once.js, found by the plugin by default
@@ -46,6 +72,35 @@ $P edit ID                 # out/ID/clip_N.mp4 + clip_N.ass + edit.json  (--stac
 $P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
 .venv/bin/python -m pytest -q
 ```
+
+### MoneyPrinterTurbo WebUI
+
+The optional standalone generator can be installed at the reviewed revision in
+`vendor/MoneyPrinterTurbo`:
+
+```
+mkdir -p vendor/MoneyPrinterTurbo
+git -C vendor/MoneyPrinterTurbo init
+git -C vendor/MoneyPrinterTurbo remote add origin https://github.com/harry0703/MoneyPrinterTurbo.git
+git -C vendor/MoneyPrinterTurbo fetch --depth 1 origin bbe7eb9ae3e7a44f4553070b82d4a126aad62a33
+git -C vendor/MoneyPrinterTurbo checkout --detach FETCH_HEAD
+```
+
+Its local `config.toml` and API keys are not stored here; configure those on
+each device before using the WebUI. From WSL, start it with the upstream
+instructions in `vendor/MoneyPrinterTurbo`:
+
+```
+./scripts/start_moneyprinterturbo.sh
+```
+
+Then open `http://localhost:8501` in Windows. If WSL localhost forwarding is
+disabled, use the current WSL address from `hostname -I`, for example
+`http://172.29.54.130:8501`. Windows users can run `start-moneyprinterturbo.bat`
+from Explorer; it starts the WSL service and opens the browser.
+
+The project-local `.agents/skills/` directory connects the imported YouTube,
+video-shotcraft, brag, prompt-master, Seedance, and YouMind workflows.
 
 ## How it works
 
