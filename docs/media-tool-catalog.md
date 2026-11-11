@@ -10,7 +10,9 @@ python3 scripts/studio_tools.py comfy --json
 python3 scripts/studio_doctor.py --json
 ```
 
-**Для поиска по всем исследованиям**, включая конкурсные 16 инструментов и семь новых ComfyUI/agent расширений: `python3 scripts/studio_tools.py --json`. Детали: [конкурс](open-source-higgsfield-lab.md), [новые ComfyUI-инструменты](comfyui-new-tools-2026.md).
+**Для поиска по базовым и исследовательским реестрам**, включая 16 конкурсных работ, 7 новых ComfyUI/agent расширений и 32 MOSS/VSR карточки: `python3 scripts/studio_tools.py --json`. Детали: [конкурс](open-source-higgsfield-lab.md), [новые ComfyUI-инструменты](comfyui-new-tools-2026.md).
+
+**Исследование моделей и VSR:** [moss-vsr-2026.md](moss-vsr-2026.md) — 33 карточки в пятом исследовательском реестре (MOSS/VSR), включая неподтверждённые ссылки с явной маркировкой.
 
 ## Источники истины
 - [catalog.json](../studio-addons/catalog.json): прежние интеграции и профили ComfyUI, FreeField, VoiceStudio и др. **Не дублировать**.

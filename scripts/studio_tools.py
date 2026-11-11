@@ -6,19 +6,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_DIR = ROOT / "studio-addons"
-SOURCES = (
-    "catalog.json",
-    "media-tools.json",
-    "research-open-source-higgsfield-2026.json",
-    "research-comfyui-extensions-2026.json",
-)
+def registry_sources():
+    """Обязательные каталоги и все исследовательские подборки.
+    
+    Новые research-*.json автоматически становятся доступны поиску;
+    код менять не требуется. Только локальные JSON, без сетевых запросов.
+    """
+    base = [REGISTRY_DIR / "catalog.json", REGISTRY_DIR / "media-tools.json"]
+    research = sorted(REGISTRY_DIR.glob("research-*.json"))
+    return base + [p for p in research if p not in base]
 
 
 def collect(query="", category=""):
     """Вернуть записи с указанием реестра и сохранением upstream-метаданных."""
     entries = []
-    for name in SOURCES:
-        source = REGISTRY_DIR / name
+    for source in registry_sources():
+        name = source.name
         if not source.is_file():
             continue
         data = json.loads(source.read_text(encoding="utf-8"))
@@ -45,7 +48,7 @@ def main():
         for item in items:
             name = item.get("name", item.get("id", "без названия"))
             status = (item.get("decision") or item.get("learning_status")
-                      or item.get("status") or "кандидат")
+                      or item.get("verification") or item.get("status") or "кандидат")
             purpose = (item.get("purpose") or item.get("capability")
                        or item.get("output") or item.get("scope") or "Не описано")
             print(f"\n{name}  [{status}]")
