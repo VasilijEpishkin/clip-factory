@@ -12,6 +12,8 @@ python3 scripts/studio_doctor.py --json
 
 **Для поиска по всем исследованиям**, включая конкурсные 16 инструментов и семь новых ComfyUI/agent расширений: `python3 scripts/studio_tools.py --json`. Детали: [конкурс](open-source-higgsfield-lab.md), [новые ComfyUI-инструменты](comfyui-new-tools-2026.md).
 
+**Исследование моделей и VSR:** [moss-vsr-2026.md](moss-vsr-2026.md) — 32 карточки в пятом исследовательском реестре (MOSS/VSR), включая неподтверждённые ссылки с явной маркировкой.
+
 ## Источники истины
 - [catalog.json](../studio-addons/catalog.json): прежние интеграции и профили ComfyUI, FreeField, VoiceStudio и др. **Не дублировать**.
 - [media-tools.json](../studio-addons/media-tools.json): дополнительные специализированные инструменты по категориям.
