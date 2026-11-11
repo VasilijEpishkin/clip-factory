@@ -2,7 +2,7 @@
   "schema_version": 1,
   "verified_at": "2026-11-11",
   "scope": "VSR + MOSS Image image generation ecosystem",
-  "description": "Новые находки с оценкой источников; включены приложения, технологии, модели, LoRA и учебные ссылки; НЕ означает установку. Civitai и часть внешних источников в текущей проверке недоступны.",
+  "description": "33 карточки: новые находки с оценкой источников; включены приложения, технологии, модели, LoRA и учебные ссылки; НЕ означает установку. Civitai и часть внешних источников в текущей проверке недоступны.",
   "legend": {
     "research-verified": "прочитан README репозитория",
     "official-documented": "проверена официальная документация",
@@ -335,6 +335,18 @@
       "installation": "читать статью; установка не требуется",
       "verification": "tutorial-verified",
       "caveats": "Из 68 вариантов автор счёл полезными 52; применимо к конкретным настройкам MOSS и seed, не универсальный benchmark.",
+      "status": "каталог исследований; не установлено и не протестировано в clip-factory"
+    },
+    {
+      "id": "fizgig",
+      "name": "Fizgig — LoRA & Fine-tune Studio",
+      "category": "model-training,tool,gui",
+      "source": "https://github.com/shootthesound/Fizgig",
+      "purpose": "Локальная студия обучения и ремонта LoRA/LoKR, sliders, full finetune и сравнения эпох для MOSS-Image и других моделей.",
+      "task": "Учиться сохранять внешний вид персонажей/стили и управлять LoRA через интерфейс вместо ручного набора тренинговых команд.",
+      "installation": "Отдельное окружение, по официальному README и docs/MOSS_IMAGE.md; MOSS Base для обучения, SFT для preview, веса отдельно.",
+      "verification": "research-verified",
+      "caveats": "Автор указывает MOSS LoRA training с 12 GB VRAM в части режимов; результаты зависят от RAM/режима. Сначала изучить лицензию, датасет, требования и совместимость; не включать тяжёлый тренинг в runtime Clip Factory.",
       "status": "каталог исследований; не установлено и не протестировано в clip-factory"
     },
     {
