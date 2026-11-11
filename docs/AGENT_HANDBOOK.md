@@ -18,6 +18,8 @@ Clip Factory — медиапроизводственный проект для 
 
 **Дополнение — ComfyUI и профессиональная постобработка:** [comfyui-new-tools-2026.md](comfyui-new-tools-2026.md). Там 7 новых инструментов, включая агентный skill `nomadoor/comfyui-readable-node`, узлы PhotoDeblur, Director's Console, мосты Nuke/After Effects, Media и Camera Angle Selector. JSON: `studio-addons/research-comfyui-extensions-2026.json`. Все только изучены по README, не установлены. `scripts/studio_tools.py` теперь читает все четыре реестра, включая конкурсный. Перед рекомендацией нужно выяснить тип задачи и проверить совместимость с установленным ComfyUI.
 
+**Исследование VSR и MOSS-Image:** [moss-vsr-2026.md](moss-vsr-2026.md), структурированный каталог: `studio-addons/research-moss-vsr-2026.json` (32 записи). Здесь не только программы, но также модели/LoRA, источники сравнения и обучение. Обращай внимание на `verification`: некоторые Civitai/HF/Reddit/Pastebin источники не удалось прочитать; их описание дано по пользовательскому сообщению, не утверждай, что функционал доказан. Модель `KBlueLeaf/MOSS-Image-heal` относится к стабилизации чисел residual stream, а не к доказанному улучшению манга-композиции. `LTX-2.5` — генератор видео, не VSR-движок. `RTX` и `GAN` сами по себе не отдельные установочные апскейлеры. Общий `scripts/studio_tools.py` теперь ищет в пяти реестрах.
+
 ## 2. Карта файлов
 
 | Путь | Содержимое | Назначение |
