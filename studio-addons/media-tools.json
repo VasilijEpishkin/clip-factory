@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "description": "Optional curated media tools for humans and agents. Registry only: nothing is installed or tested by adding an entry.",
+  "status_legend": {
+    "optional-pilot": "candidate for a bounded workflow test",
+    "optional-evaluation": "evaluate before adoption",
+    "specialist-pilot": "specialized hardware/skill requirements"
+  },
+  "tools": [
+    {
+      "id": "rembg",
+      "name": "Rembg",
+      "source": "https://github.com/danielgatis/rembg",
+      "category": "image",
+      "capability": "background removal / matting",
+      "runtime": "CPU or isolated ONNX GPU env",
+      "status": "optional-pilot",
+      "notes": "MIT code; check individual model-weight license"
+    },
+    {
+      "id": "upscayl",
+      "name": "Upscayl",
+      "source": "https://github.com/upscayl/upscayl",
+      "category": "image",
+      "capability": "GUI image upscaling",
+      "runtime": "desktop app, GPU support varies",
+      "status": "optional-evaluation",
+      "notes": "check current hardware compatibility"
+    },
+    {
+      "id": "real-esrgan",
+      "name": "Real-ESRGAN",
+      "source": "https://github.com/xinntao/Real-ESRGAN",
+      "category": "image",
+      "capability": "image/video-frame super-resolution",
+      "runtime": "separate inference env",
+      "status": "optional-pilot",
+      "notes": "model licenses separately"
+    },
+    {
+      "id": "lama-cleaner",
+      "name": "IOPaint (formerly lama-cleaner)",
+      "source": "https://github.com/Sanster/IOPaint",
+      "category": "image",
+      "capability": "inpainting/object removal GUI",
+      "runtime": "isolated Python app",
+      "status": "optional-evaluation",
+      "notes": "review upstream maintenance"
+    },
+    {
+      "id": "segment-anything-2",
+      "name": "SAM 2",
+      "source": "https://github.com/facebookresearch/sam2",
+      "category": "image-video",
+      "capability": "image/video object segmentation",
+      "runtime": "separate GPU env",
+      "status": "specialist-pilot",
+      "notes": "research model, check checkpoint licenses"
+    },
+    {
+      "id": "depth-anything-v2",
+      "name": "Depth Anything V2",
+      "source": "https://github.com/DepthAnything/Depth-Anything-V2",
+      "category": "image-video",
+      "capability": "monocular depth / parallax",
+      "runtime": "separate model runtime",
+      "status": "optional-pilot",
+      "notes": "model variants have differing licenses"
+    },
+    {
+      "id": "comfyui-manager",
+      "name": "ComfyUI Manager",
+      "source": "https://github.com/ltdrdata/ComfyUI-Manager",
+      "category": "generation",
+      "capability": "ComfyUI custom-node management",
+      "runtime": "inside isolated ComfyUI",
+      "status": "optional-pilot",
+      "notes": "custom nodes execute code; review before installation"
+    },
+    {
+      "id": "comfyui-video-helper",
+      "name": "ComfyUI VideoHelperSuite",
+      "source": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite",
+      "category": "video",
+      "capability": "video I/O nodes for ComfyUI",
+      "runtime": "inside isolated ComfyUI",
+      "status": "optional-pilot",
+      "notes": "FFmpeg dependency"
+    },
+    {
+      "id": "wan2gp",
+      "name": "Wan2GP",
+      "source": "https://github.com/deepbeepmeep/Wan2GP",
+      "category": "generation-video",
+      "capability": "local video generation UI",
+      "runtime": "separate GPU runtime",
+      "status": "optional-evaluation",
+      "notes": "hardware/weights and licenses vary"
+    },
+    {
+      "id": "video2x",
+      "name": "Video2X",
+      "source": "https://github.com/k4yt3x/video2x",
+      "category": "video",
+      "capability": "video upscaling / interpolation",
+      "runtime": "standalone GPU runtime",
+      "status": "optional-evaluation",
+      "notes": "benchmark versus Real-ESRGAN"
+    },
+    {
+      "id": "auto-editor",
+      "name": "auto-editor",
+      "source": "https://github.com/WyattBlue/auto-editor",
+      "category": "video",
+      "capability": "silence-aware automated editing",
+      "runtime": "standalone CLI",
+      "status": "optional-pilot",
+      "notes": "complements clip.py; avoid duplicating core"
+    },
+    {
+      "id": "losslesscut",
+      "name": "LosslessCut",
+      "source": "https://github.com/mifi/lossless-cut",
+      "category": "video",
+      "capability": "GUI lossless trimming and review",
+      "runtime": "desktop app",
+      "status": "optional-pilot",
+      "notes": "no re-encode for compatible cuts"
+    },
+    {
+      "id": "kdenlive",
+      "name": "Kdenlive",
+      "source": "https://github.com/KDE/kdenlive",
+      "category": "video",
+      "capability": "manual non-linear editor GUI",
+      "runtime": "desktop app",
+      "status": "optional-pilot",
+      "notes": "user-facing NLE, not agent API"
+    },
+    {
+      "id": "shotcut",
+      "name": "Shotcut",
+      "source": "https://github.com/mltframework/shotcut",
+      "category": "video",
+      "capability": "manual video editor GUI",
+      "runtime": "desktop app",
+      "status": "optional-evaluation",
+      "notes": "overlaps with Kdenlive"
+    },
+    {
+      "id": "audacity",
+      "name": "Audacity",
+      "source": "https://github.com/audacity/audacity",
+      "category": "audio",
+      "capability": "manual audio editing and cleanup",
+      "runtime": "desktop app",
+      "status": "optional-pilot",
+      "notes": "not a TTS backend"
+    },
+    {
+      "id": "demucs",
+      "name": "Demucs",
+      "source": "https://github.com/facebookresearch/demucs",
+      "category": "audio",
+      "capability": "source separation",
+      "runtime": "separate Python env",
+      "status": "optional-evaluation",
+      "notes": "verify upstream maintenance and weights"
+    },
+    {
+      "id": "whisperx",
+      "name": "WhisperX",
+      "source": "https://github.com/m-bain/whisperX",
+      "category": "audio",
+      "capability": "forced alignment and diarization",
+      "runtime": "separate Python GPU env",
+      "status": "optional-evaluation",
+      "notes": "compare to existing faster-whisper"
+    },
+    {
+      "id": "blender",
+      "name": "Blender",
+      "source": "https://github.com/blender/blender",
+      "category": "3d-motion",
+      "capability": "3D animation/compositing GUI + scripting",
+      "runtime": "desktop app / isolated runtime",
+      "status": "optional-pilot",
+      "notes": "Blender MCP configured separately"
+    }
+  ]
+}
