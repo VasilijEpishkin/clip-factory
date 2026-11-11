@@ -9,7 +9,8 @@
     "model-card-verified": "проверена model card",
     "source-exists-no-card": "страница существует, описания нет",
     "secondary-verified": "подтверждено вторичным источником, не первичным",
-    "source-unverified": "ссылка от пользователя сохранена, первоисточник не проверен"
+    "source-unverified": "ссылка от пользователя сохранена, первоисточник не проверен",
+    "tutorial-verified": "доступна и прочитана авторская статья/инструкция"
   },
   "tools": [
     {
@@ -65,7 +66,7 @@
       "name": "LTX-2.5",
       "category": "video-generation",
       "source": "https://docs.ltx.io/models/ltx-2-5/",
-      "purpose": "Генерация и видео-видео сценарии; НЕ специализированный VSR-движок.",
+      "purpose": "Генерация видео из текста, изображения или аудио; НЕ специализированный VSR-движок.",
       "task": "Генерация видео и аудио",
       "installation": "через официальный API или совместимый движок; не часть core",
       "verification": "official-documented",
