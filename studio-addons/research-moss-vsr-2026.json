@@ -11,7 +11,7 @@
     "secondary-verified": "подтверждено вторичным источником, не первичным",
     "source-unverified": "ссылка от пользователя сохранена, первоисточник не проверен"
   },
-  "entries": [
+  "tools": [
     {
       "id": "relayvsr",
       "name": "RelayVSR",
