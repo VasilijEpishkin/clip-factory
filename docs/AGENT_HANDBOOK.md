@@ -16,6 +16,8 @@ Clip Factory — медиапроизводственный проект для 
 
 **Дополнение для исследовательских запросов:** [open-source-higgsfield-lab.md](open-source-higgsfield-lab.md) содержит 16 проверенных по upstream README конкурсных решений, их практические задачи, различия, способы сочетания и ограничения. Машинный список: `studio-addons/research-open-source-higgsfield-2026.json`. Это **не** установленный софт. `neuregex/freefield` и `droppedmyza/freefield` — разные репозитории; не путать!
 
+**Дополнение — ComfyUI и профессиональная постобработка:** [comfyui-new-tools-2026.md](comfyui-new-tools-2026.md). Там 7 новых инструментов, включая агентный skill `nomadoor/comfyui-readable-node`, узлы PhotoDeblur, Director's Console, мосты Nuke/After Effects, Media и Camera Angle Selector. JSON: `studio-addons/research-comfyui-extensions-2026.json`. Все только изучены по README, не установлены. `scripts/studio_tools.py` теперь читает все четыре реестра, включая конкурсный. Перед рекомендацией нужно выяснить тип задачи и проверить совместимость с установленным ComfyUI.
+
 ## 2. Карта файлов
 
 | Путь | Содержимое | Назначение |

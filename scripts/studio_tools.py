@@ -1,39 +1,60 @@
 #!/usr/bin/env python3
-"""Search curated optional tools without installing software or models."""
+"""Поиск инструментов Clip Factory во всех реестрах (без установки)."""
 import argparse
 import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = [ROOT / "studio-addons" / "catalog.json", ROOT / "studio-addons" / "media-tools.json"]
+REGISTRY_DIR = ROOT / "studio-addons"
+SOURCES = (
+    "catalog.json",
+    "media-tools.json",
+    "research-open-source-higgsfield-2026.json",
+    "research-comfyui-extensions-2026.json",
+)
 
-def main():
-    p = argparse.ArgumentParser(description="Clip Factory optional media tool catalog")
-    p.add_argument("query", nargs="?", default="", help="Name, purpose, category or id")
-    p.add_argument("--category", help="Filter by category (image, video, audio, generation, 3d-motion)")
-    p.add_argument("--json", action="store_true", help="Print matching records as JSON")
-    args = p.parse_args()
-    matches = []
-    for source in SOURCES:
-        if not source.exists():
+
+def collect(query="", category=""):
+    """Вернуть записи с указанием реестра и сохранением upstream-метаданных."""
+    entries = []
+    for name in SOURCES:
+        source = REGISTRY_DIR / name
+        if not source.is_file():
             continue
         data = json.loads(source.read_text(encoding="utf-8"))
         for item in data.get("tools", []):
-            item = {**item, "registry": source.name}
-            searchable = " ".join(str(v) for v in item.values()).lower()
-            if args.query.lower() not in searchable:
+            entry = {**item, "registry": name}
+            searchable = json.dumps(entry, ensure_ascii=False, sort_keys=True).lower()
+            group = str(entry.get("category") or entry.get("scope") or "").lower()
+            if query.lower() not in searchable or (category and category.lower() not in group):
                 continue
-            if args.category and args.category.lower() not in str(item.get("category", item.get("scope", ""))).lower():
-                continue
-            matches.append(item)
+            entries.append(entry)
+    return entries
+
+
+def main():
+    p = argparse.ArgumentParser(description="Каталог программ и навыков Clip Factory")
+    p.add_argument("query", nargs="?", default="", help="Название или задача, по-русски или по-английски")
+    p.add_argument("--category", help="Фильтр категории из реестра")
+    p.add_argument("--json", action="store_true", help="Вывести JSON для агента")
+    args = p.parse_args()
+    items = collect(query=args.query, category=args.category or "")
     if args.json:
-        print(json.dumps(matches, ensure_ascii=False, indent=2))
+        print(json.dumps(items, ensure_ascii=False, indent=2))
     else:
-        for item in matches:
-            print(f'{item["id"]:25} {item.get("status","unknown"):24} {item.get("source") or "source unknown"}')
-            print(f'  {item.get("capability", item.get("scope", ""))}')
-        print(f"{len(matches)} matching tools (registry only; not installed)")
+        for item in items:
+            name = item.get("name", item.get("id", "без названия"))
+            status = (item.get("decision") or item.get("learning_status")
+                      or item.get("status") or "кандидат")
+            purpose = (item.get("purpose") or item.get("capability")
+                       or item.get("output") or item.get("scope") or "Не описано")
+            print(f"\n{name}  [{status}]")
+            print(f"  Для чего: {purpose}")
+            print(f"  Источник: {item.get('source') or 'не установлен'}")
+            print(f"  Карточка: {item['registry']}")
+        print(f"\nВсего: {len(items)} записей. Каталог не устанавливает программы.")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

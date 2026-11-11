@@ -6,6 +6,12 @@
 разными даже у приложения и его моделей. Секреты и настройки подключения сюда
 не помещать.
 
+## Исследовательские каталоги — НЕ программы для автоматической установки
+
+- [16 работ конкурса Open Source Higgsfield](research-open-source-higgsfield-2026.json) — [разбор по задачам](../docs/open-source-higgsfield-lab.md).
+- [7 новых инструментов ComfyUI, agent skill и мостов](research-comfyui-extensions-2026.json) — [инструкции и решение о включении](../docs/comfyui-new-tools-2026.md).
+- Общий поиск (4 реестра): `python3 scripts/studio_tools.py` или `python3 scripts/studio_tools.py --json`.
+
 ## Профили
 
 | Профиль | Состав | Когда устанавливать |
