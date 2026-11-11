@@ -2,7 +2,7 @@
 
 **AI Media Studio** — единый проект для пользователей и агентов: видеомонтаж и Shorts, работа с изображениями, звук, анимация, рендер и подключаемые сервисы. Рабочий CLI нарезки видео сохранён; остальные возможности имеют разные статусы готовности.
 
-**Навигация:** [архитектура](docs/architecture.md) · [сценарии для людей и агентов](workflows/README.md) · [стек и установка](docs/studio-stack.md) · [инвентаризация и статусы](docs/studio-inventory.md) · [дополнительные инструменты](studio-addons/README.md) · [закреплённые agent skills](agent-stack/sources.json).
+**Проверка окружения (без установки и авторизации):** `python3 scripts/studio_doctor.py` или `python3 scripts/studio_doctor.py --json`. Отсутствующие опциональные программы не блокируют проверку.\n\n**Навигация:** [архитектура](docs/architecture.md) · [сценарии для людей и агентов](workflows/README.md) · [стек и установка](docs/studio-stack.md) · [инвентаризация и статусы](docs/studio-inventory.md) · [дополнительные инструменты](studio-addons/README.md) · [закреплённые agent skills](agent-stack/sources.json).
 
 **Один канонический репозиторий:** `clip-factory`. Прежний `clip-factory-agent-tool-stack` — архивный snapshot, не источник установки. Не смешивайте установленные программы, необязательные backend, агентные навыки и облачные подписки.
 
