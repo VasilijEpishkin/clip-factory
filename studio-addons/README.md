@@ -12,6 +12,10 @@
 - [7 новых инструментов ComfyUI, agent skill и мостов](research-comfyui-extensions-2026.json) — [инструкции и решение о включении](../docs/comfyui-new-tools-2026.md).
 - Общий поиск (4 реестра): `python3 scripts/studio_tools.py` или `python3 scripts/studio_tools.py --json`.
 
+- [32 карточки про видеосуперразрешение, MOSS-Image и референсы](research-moss-vsr-2026.json) — [русскоязычный обзор с практическими задачами и оговорками](../docs/moss-vsr-2026.md).
+
+**Поиск по всем пяти реестрам**: `python3 scripts/studio_tools.py`, для агентов — `python3 scripts/studio_tools.py --json`. Необязательные модели и ноды нельзя устанавливать без решения пользователя.
+
 ## Профили
 
 | Профиль | Состав | Когда устанавливать |
