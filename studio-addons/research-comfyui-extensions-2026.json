@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-11-11",
+  "purpose": "Исследовательская подборка новых ComfyUI и агентных инструментов; добавление не означает установку или тестирование.",
+  "source_of_truth": "README каждого upstream репозитория",
+  "admission_policy": "Все 7 подтверждены и полезны в каталоге; узкие Nuke/AE мосты не базовые зависимости; skill не auto-install.",
+  "tools": [
+    {
+      "id": "comfyui-readable-node",
+      "name": "ComfyUI Readable Node",
+      "source": "https://github.com/nomadoor/comfyui-readable-node",
+      "category": "skills,comfyui-workflow",
+      "type": "agent-skill",
+      "purpose": "Агент разбирает сложный граф ComfyUI, собирает читаемый вариант без изменения назначения; разбивает многоцелевые графы, убирает скрытые связи, сокращает custom nodes.",
+      "inputs": [
+        "ComfyUI workflow JSON",
+        "запущенный ComfyUI с данными о нодах"
+      ],
+      "outputs": [
+        "*_readable.json",
+        "report.html с объяснением"
+      ],
+      "installation": "Плагин Claude/Codex по upstream README; для прочих агентов npx skills add nomadoor/comfyui-readable-node -g (Node.js 22.20+). Python 3 stdlib; ComfyUI нужен запущенным для работы.",
+      "decision": "принять-в-каталог-скиллов",
+      "priority": "высокий-для-изучения",
+      "limitations": "~25 нод за ~10 минут, большие графы ~20–40 минут; возможна потеря поведения или сбой, итог проверять в ComfyUI.",
+      "integration": "Не добавлять автоматически в agent-stack/sources.json; учёт в исследовательском каталоге, позднее закрепить ревизию и проверить на тестовом workflow.",
+      "project_status": "источник проверен, в Clip Factory не установлен и не испытан"
+    },
+    {
+      "id": "comfyui-photodeblur",
+      "name": "ComfyUI-PhotoDeblur",
+      "source": "https://github.com/porfeng/ComfyUI-PhotoDeblur",
+      "category": "photo,restoration,comfyui",
+      "type": "comfyui-custom-nodes",
+      "purpose": "Исправление умеренного смаза от движения/дрожания камеры HI-Diff и MISCFilter, полноразмерно по тайлам.",
+      "inputs": [
+        "sRGB TIFF/PNG фотография"
+      ],
+      "outputs": [
+        "восстановленная фотография в исходном разрешении"
+      ],
+      "installation": "ComfyUI/custom_nodes, git clone; pip install -r requirements.txt -r requirements-download.txt с Python именно ComfyUI; MISCFilter CUDA12 требует requirements-misc-cu12.txt; затем веса через ноду с SHA256.",
+      "decision": "принять-для-фото-реставрации",
+      "priority": "высокий-для-практики",
+      "limitations": "TTA ~8× вычислений; не лечит дефокус/пересвет; портреты и мелкие лица нестабильны; веса отдельно.",
+      "integration": "Сравнить с Upscayl/Real-ESRGAN: deblur и upscale разные операции. Краткий пилот с фото вывески.",
+      "project_status": "источник проверен, в Clip Factory не установлен и не испытан"
+    },
+    {
+      "id": "directors-console",
+      "name": "Director's Console",
+      "source": "https://github.com/NickPittas/DirectorsConsole",
+      "category": "cinema,storyboard,agent,comfyui",
+      "type": "standalone-studio",
+      "purpose": "Управление промптами кино, параметрами камеры/света, раскадровкой, заданиями ComfyUI, галереей, встроенным Pi/Codex-агентом.",
+      "inputs": [
+        "текстовый/визуальный бриф",
+        "ComfyUI API workflow",
+        "медиа-референсы"
+      ],
+      "outputs": [
+        "покадровый план",
+        "сгенерированные кадры/видео",
+        "история и галерея"
+      ],
+      "installation": "git clone; Python 3.11+, Node.js 22.13+; python start.py --setup; python start.py; ComfyUI отдельно для генерации.",
+      "decision": "принять-для-исследования-режиссуры",
+      "priority": "высокий-для-изучения",
+      "limitations": "Встроенный agent harness Pi/Codex; реальная генерация зависит от workflow и backend; отдельные API providers могут быть платными.",
+      "integration": "Сравнить с ComfyArt/Creativefield/Sonder; не принимать как второй обязательный интерфейс Clip Factory.",
+      "project_status": "источник проверен, в Clip Factory не установлен и не испытан"
+    },
+    {
+      "id": "nuke-to-comfyui",
+      "name": "NukeToComfyUI",
+      "source": "https://github.com/NickPittas/NukeToComfyUI",
+      "category": "compositing,bridge,vfx",
+      "type": "comfyui-nuke-bridge",
+      "purpose": "Двусторонний обмен изображением, видео и масками между Foundry Nuke и ComfyUI, включая EXR/альфу и прогресс.",
+      "inputs": [
+        "Nuke изображение/маска либо видеодиапазон"
+      ],
+      "outputs": [
+        "результат ComfyUI обратно в Nuke"
+      ],
+      "installation": "Нужны установленные Nuke и ComfyUI; в корне python tools/install.py --dry-run --yes, затем python tools/install.py --yes или интерактивный установщик; перезапустить обе программы.",
+      "decision": "принять-как-специализированный-мост",
+      "priority": "низкий-до-задачи-с-Nuke",
+      "limitations": "Nuke — отдельное коммерческое ПО; безопасность локального HTTP bridge, не открывать наружу; ComfyUI, веса и Nuke не входят в installer.",
+      "integration": "Хранить в каталоге VFX-профессиональных интеграций; не включать в базовую установку.",
+      "project_status": "источник проверен, в Clip Factory не установлен и не испытан"
+    },
+    {
+      "id": "ae2comfyui",
+      "name": "AE2ComfyUI",
+      "source": "https://github.com/NickPittas/AE2ComfyUI",
+      "category": "motion,bridge,comfyui",
+      "type": "comfyui-aftereffects-bridge",
+      "purpose": "Передать композицию/маску из Adobe After Effects в ComfyUI и вернуть результат на тот же таймлайн.",
+      "inputs": [
+        "композиция AE: кадр или видео",
+        "маска выбранного слоя"
+      ],
+      "outputs": [
+        "PNG / MOV ProRes / MP4 поверх композиции AE"
+      ],
+      "installation": "Нужны After Effects, ComfyUI и для видео Adobe Media Encoder; python3 tools/install.py --comfyui /path/to/ComfyUI --dry-run; затем запуск установщика и рестарт.",
+      "decision": "принять-как-специализированный-мост",
+      "priority": "средний-при-работе-в-AE",
+      "limitations": "AE платный и не нужен базовому clip.py; цветовоспроизведение, альфа и тайминг надо отдельно тестировать.",
+      "integration": "Быстрый мост для VFX/motion pipeline при использовании Adobe; не заменяет Remotion.",
+      "project_status": "источник проверен, в Clip Factory не установлен и не испытан"
+    },
+    {
+      "id": "comfyui-media",
+      "name": "Comfyui_Media",
+      "source": "https://github.com/NickPittas/Comfyui_Media",
+      "category": "video,media-io,comfyui",
+      "type": "comfyui-custom-nodes",
+      "purpose": "Чтение MOV/MP4 и последовательностей PNG/EXR/TIFF, предварительный просмотр и экспорт H.264, ProRes, кадровых последовательностей.",
+      "inputs": [
+        "видео/последовательности кадров"
+      ],
+      "outputs": [
+        "видео, анимации и PNG/EXR последовательности"
+      ],
+      "installation": "Клонировать или копировать в ComfyUI/custom_nodes/Comfyui_Media, обеспечить FFmpeg/ffprobe в PATH, перезапустить ComfyUI.",
+      "decision": "принять-как-альтернативный-media-io",
+      "priority": "средний-для-пилота",
+      "limitations": "Пересекается с VideoHelperSuite; сравнить поддержку EXR/ProRes и корректное число кадров для WAN (4n+1), LTX (8n+1), H3 (17n+5).",
+      "integration": "Не ставить одновременно с альтернативным I/O паком без задачи и теста.",
+      "project_status": "источник проверен, в Clip Factory не установлен и не испытан"
+    },
+    {
+      "id": "camera-angle-selector",
+      "name": "ComfyUI Camera Angle Selector",
+      "source": "https://github.com/NickPittas/ComfyUI_CameraAngleSelector",
+      "category": "cinematography,camera,comfyui",
+      "type": "comfyui-custom-node",
+      "purpose": "Выбор до 96 ракурсов для Qwen-Image-Edit-2511 Multiple-Angles-LoRA: 8 направлений × 4 высоты × 3 крупности.",
+      "inputs": [
+        "требуемое направление/высота/крупность камеры"
+      ],
+      "outputs": [
+        "список структурированных строк-подсказок для LoRA"
+      ],
+      "installation": "Клонировать в ComfyUI/custom_nodes/ComfyUI_CameraAngleSelector, перезапустить ComfyUI; модель/LoRA отдельно.",
+      "decision": "принять-как-учебный-модуль-камеры",
+      "priority": "средний-для-эксперимента",
+      "limitations": "Не управляет физической камерой и не гарантирует правильный новый ракурс; применимость зависит от конкретной LoRA и модели.",
+      "integration": "Изучить вместе с DirectorsConsole и Reshoot 4D: prompt-based camera view vs 4D camera motion — разные задачи.",
+      "project_status": "источник проверен, в Clip Factory не установлен и не испытан"
+    }
+  ]
+}
