@@ -11,6 +11,7 @@ SOURCES = (
     "media-tools.json",
     "research-open-source-higgsfield-2026.json",
     "research-comfyui-extensions-2026.json",
+    "research-moss-vsr-2026.json",
 )
 
 
@@ -45,7 +46,7 @@ def main():
         for item in items:
             name = item.get("name", item.get("id", "без названия"))
             status = (item.get("decision") or item.get("learning_status")
-                      or item.get("status") or "кандидат")
+                      or item.get("verification") or item.get("status") or "кандидат")
             purpose = (item.get("purpose") or item.get("capability")
                        or item.get("output") or item.get("scope") or "Не описано")
             print(f"\n{name}  [{status}]")
