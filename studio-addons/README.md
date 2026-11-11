@@ -10,9 +10,9 @@
 
 - [16 работ конкурса Open Source Higgsfield](research-open-source-higgsfield-2026.json) — [разбор по задачам](../docs/open-source-higgsfield-lab.md).
 - [7 новых инструментов ComfyUI, agent skill и мостов](research-comfyui-extensions-2026.json) — [инструкции и решение о включении](../docs/comfyui-new-tools-2026.md).
-- [32 карточки про видеосуперразрешение, MOSS-Image и референсы](research-moss-vsr-2026.json) — [русскоязычный обзор с практическими задачами и оговорками](../docs/moss-vsr-2026.md).
+- [33 карточки про видеосуперразрешение, MOSS-Image и референсы](research-moss-vsr-2026.json) — [русскоязычный обзор с практическими задачами и оговорками](../docs/moss-vsr-2026.md).
 
-**Поиск по всем пяти реестрам**: `python3 scripts/studio_tools.py`, для агентов — `python3 scripts/studio_tools.py --json`. Необязательные модели и ноды нельзя устанавливать без решения пользователя.
+**Поиск по базовым и всем `research-*.json` реестрам**: `python3 scripts/studio_tools.py`, для агентов — `python3 scripts/studio_tools.py --json`. Необязательные модели и ноды нельзя устанавливать без решения пользователя.
 
 ## Профили
 
