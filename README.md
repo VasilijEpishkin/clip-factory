@@ -1,159 +1,85 @@
-# clip-factory
+# Clip Factory — медиастудия для человека и AI-агентов
 
-**AI Media Studio** — единый проект для пользователей и агентов: видеомонтаж и Shorts, работа с изображениями, звук, анимация, рендер и подключаемые сервисы. Рабочий CLI нарезки видео сохранён; остальные возможности имеют разные статусы готовности.
+**Что это:** проект для создания коротких вертикальных роликов из длинных видео. Уже есть рабочий Python-пайплайн с транскрибацией, выбором фрагментов, кадрированием лиц, субтитрами и проверкой качества. Дополнительно собран каталог программ для генерации, обработки фотографий, монтажа, озвучки и анимации.
 
-**Проверка окружения (без установки и авторизации):** `python3 scripts/studio_doctor.py` или `python3 scripts/studio_doctor.py --json`. Отсутствующие опциональные программы не блокируют проверку.\n\n**Дополнительные фото/видео/аудио инструменты:** [каталог и план подключения](docs/media-tool-catalog.md). Поиск для людей и агентов: `python3 scripts/studio_tools.py` (например, `python3 scripts/studio_tools.py comfy`). Это реестр, а не автоматическая установка.\n\n**Навигация:** [архитектура](docs/architecture.md) · [сценарии для людей и агентов](workflows/README.md) · [стек и установка](docs/studio-stack.md) · [инвентаризация и статусы](docs/studio-inventory.md) · [дополнительные инструменты](studio-addons/README.md) · [закреплённые agent skills](agent-stack/sources.json).
+**Важно:** программа в каталоге ≠ установленная программа. Пока реально работающая часть репозитория — видеопайплайн `clip.py`. ComfyUI, FreeField и остальные расширения устанавливаются отдельно, по необходимости.
 
-**Один канонический репозиторий:** `clip-factory`. Прежний `clip-factory-agent-tool-stack` — архивный snapshot, не источник установки. Не смешивайте установленные программы, необязательные backend, агентные навыки и облачные подписки.
+## С чего начать
 
-## Действующий видеопайплайн
+| Я хочу… | Что использовать | Где инструкция |
+| --- | --- | --- |
+| Сделать Shorts из длинного видео | `clip.py`, FFmpeg, Whisper | [Установка основы](docs/installation-ru.md) · [Сценарий Shorts](workflows/long-video-to-shorts.md) |
+| Генерировать изображения и видео | ComfyUI; FreeField для эффектов | [Каталог инструментов](docs/tools-ru.md) |
+| Удалить фон, объект или повысить качество фото | Rembg, IOPaint, Upscayl | [Каталог инструментов](docs/tools-ru.md) |
+| Монтировать видео вручную | Kdenlive или LosslessCut | [Каталог инструментов](docs/tools-ru.md) |
+| Улучшить видео, добавить эффекты | Video2X, ComfyUI VideoHelperSuite | [Каталог инструментов](docs/tools-ru.md) |
+| Работать со звуком и голосом | Audacity, Demucs, VoiceStudio | [Каталог инструментов](docs/tools-ru.md) |
+| Создать 3D-анимацию или захват движения | Blender, MoCapAnything | [Каталог инструментов](docs/tools-ru.md) |
+| Дать задачу Hermes, Codex или Claude Code | `AGENTS.md`, навыки, CLI | [Подключение агентов](docs/agents-ru.md) |
 
-Local video pipeline and production workspace: long video -> 3 short vertical
-(1080x1920) clips with face reframe and word-level burned captions. The pipeline
-does not publish rendered output; publishing integrations are configured
-separately per device.
+## Установка: три шага
 
-## Setup
+**1.** Скачайте репозиторий и перейдите в него:
 
-Supported baseline: Linux or WSL2, Python 3.11+, `uv`, Node.js 22+, npm, and
-FFmpeg/ffprobe with libass. NVIDIA CUDA is optional; transcription has a CPU
-fallback. On a fresh clone install system tools first, then reproduce the locked
-Python and JavaScript environments:
-
-```
-uv sync
-cd remotion && npm ci && cd ..
-cd hyperframes && npm ci && cd ..
-mkdir -p tools && curl -sSfL -o tools/blaze_face_short_range.tflite \
-  https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite
+```bash
+git clone https://github.com/VasilijEpishkin/clip-factory.git
+cd clip-factory
 ```
 
-To install the project's pinned agent skills:
+Репозиторий приватный: для клонирования потребуется доступ к GitHub.
 
+**2.** Выполните [инструкцию для вашей системы](docs/installation-ru.md). Базовые зависимости: Python 3.11+, `uv`, FFmpeg с `ffprobe` и поддержкой libass, Node.js 22+, npm и Git. Windows — через WSL2.
+
+**3.** Проверьте окружение:
+
+```bash
+python3 scripts/studio_doctor.py
 ```
-python3 agent-stack/install.py .
-mkdir -p .claude
-ln -s ../.agents/skills .claude/skills
-```
 
-Account login, MCP configuration, and browser cookies are per-device and must
-be configured locally; never copy `.mcp.json`, OAuth files, or cookies from
-another machine.
+Программа покажет, какие компоненты доступны. Ничего не устанавливает и не запрашивает пароли.
 
-For Windows, run the project inside WSL2 so FFmpeg, Python, Node, and skill
-symlinks share the same filesystem.
+**Не нужно устанавливать весь каталог.** Для работы с Shorts достаточно базового окружения. ComfyUI, FreeField, Blender и прочие тяжёлые программы подключаются только под конкретную задачу.
 
-```
-ffmpeg -version && ffprobe -version        # confirm the system runtime
-node --version && uv --version
-```
-Needs system `ffmpeg` with libass (`h264_nvenc` used when available, else libx264), `yt-dlp`, and an LLM CLI:
+## Как устроен проект
 
-- `hermes` (default when configured): `export CLIP_HERMES_HOME=~/.hermes/profiles/<clip profile>` - a profile logged into
-  a **separate** Codex subscription. Runs `hermes -z <prompt> -t safe --ignore-rules --cli`
-  with `HERMES_HOME=$CLIP_HERMES_HOME`; provider and model are that profile's `model:` config (`gpt-5.4-mini` is rejected for ChatGPT-account Codex). Without the variable the backend is skipped (never the default profile: that is
-  the owner's main Codex account) and `claude -p` is used.
-- `codex` (`codex exec`, if installed and logged in), `claude` (`claude -p`).
+| Папка / файл | Для чего |
+| --- | --- |
+| `clip.py` | Главная команда обработки видео: загрузка → расшифровка → фрагменты → монтаж → проверка |
+| `remotion/`, `hyperframes/` | Дополнительные движки создания и рендеринга видео |
+| `agent-stack/` | Установщик и список навыков для AI-агентов |
+| `studio-addons/` | Реестры внешних инструментов: название, ссылка, назначение, статус |
+| `workflows/` | Пошаговые сценарии выполнения конкретных задач |
+| `scripts/` | Диагностика окружения и поиск инструментов |
+| `docs/` | Подробные инструкции, архитектура и технические заметки |
+| `work/`, `out/` | Рабочие материалы и результаты (создаются локально, не хранятся в Git) |
 
-### YouTube bot check ("Sign in to confirm you're not a bot")
+## Быстрые команды
 
-Two layers, neither guaranteed. Prefer the rights holder's source file from the campaign brief.
-1. PO tokens via [bgutil-ytdlp-pot-provider](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) (GPL-3.0; we only run it,
-   no code copied). The plugin is a pip package and is installed into the yt-dlp uv tool (2026-10-03):
-   `uv pip install --python ~/.local/share/uv/tools/yt-dlp/bin/python bgutil-ytdlp-pot-provider==2.0.1`.
-   It also needs a token provider; script mode works without Docker (Node >= 22, already present), **built 2026-11-03** (`~/bgutil-ytdlp-pot-provider`, script-node provider detected by yt-dlp):
-   ```
-   git clone --single-branch --branch 2.0.1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git ~/bgutil-ytdlp-pot-provider
-   cd ~/bgutil-ytdlp-pot-provider/server && npm ci && npx tsc     # -> build/generate_once.js, found by the plugin by default
-   ```
-   (or the HTTP server: `node build/main.js`, or `docker run -d --init -p 127.0.0.1:4416:4416 brainicism/bgutil-ytdlp-pot-provider`).
-   Check: `yt-dlp -v URL 2>&1 | grep pot` should show `Generating a gvs PO Token ... via bgutil script`.
-2. `--cookies cookies.txt` exported from a **separate** throwaway account, never the owner's main one (it can get banned).
+```bash
+# Проверка зависимостей
+python3 scripts/studio_doctor.py
 
-Metadata (incl. `heatmap`) already works from this IP without either; format downloads are what get blocked.
+# Показать каталог дополнительных инструментов
+python3 scripts/studio_tools.py
 
-## Run
+# Найти инструмент по задаче
+python3 scripts/studio_tools.py background
 
-```
-P="nice -n 10 .venv/bin/python clip.py"
-$P fetch URL --id ID       # work/ID/src.* (best <=2160p, retry capped at 1080p), meta.json (+ YouTube heatmap); --cookies FILE
-$P transcribe ID           # work/ID/transcript.json  (CUDA medium int8_float16, or CPU small int8; --device/--model)
-$P highlights ID           # work/ID/highlights.json  (--backend hermes|codex|claude; falls back to the others)
-$P edit ID                 # out/ID/clip_N.mp4 + clip_N.ass + edit.json  (--stack, --no-speakers)
-$P qa ID                   # out/ID/qa.json + clip_N_f1.png / clip_N_f2.png
+# Пройти тесты основного пайплайна после установки
 .venv/bin/python -m pytest -q
 ```
 
-### MoneyPrinterTurbo WebUI
+Для полного запуска обработки видео используйте [пошаговый сценарий](workflows/long-video-to-shorts.md). Он требует настроенного источника видео и одного из поддерживаемых LLM-клиентов для выбора фрагментов.
 
-The optional standalone generator can be installed at the reviewed revision in
-`vendor/MoneyPrinterTurbo`:
+## Что уже готово, а что нет
 
-```
-mkdir -p vendor/MoneyPrinterTurbo
-git -C vendor/MoneyPrinterTurbo init
-git -C vendor/MoneyPrinterTurbo remote add origin https://github.com/harry0703/MoneyPrinterTurbo.git
-git -C vendor/MoneyPrinterTurbo fetch --depth 1 origin bbe7eb9ae3e7a44f4553070b82d4a126aad62a33
-git -C vendor/MoneyPrinterTurbo checkout --detach FETCH_HEAD
-```
+- **Работало на контрольном примере:** конвейер `clip.py`, три вертикальных ролика с субтитрами и проверкой качества (результаты испытания от 03.10.2026). Это **не** означает проверку на вашем текущем устройстве.
+- **Есть в репозитории:** код, инструкции, каталоги инструментов, агентные навыки и скрипты проверки окружения.
+- **Требует отдельной установки:** ComfyUI, FreeField, GUI-редакторы, 3D-программы, дополнительные AI-модели.
+- **Пока не создано:** единое графическое приложение, объединяющее все программы.
 
-Its local `config.toml` and API keys are not stored here; configure those on
-each device before using the WebUI. From WSL, start it with the upstream
-instructions in `vendor/MoneyPrinterTurbo`:
+## Дополнительная документация
 
-```
-./scripts/start_moneyprinterturbo.sh
-```
+[Подробная установка](docs/installation-ru.md) · [Справочник программ](docs/tools-ru.md) · [Работа с агентами](docs/agents-ru.md) · [Технический стек](docs/studio-stack.md) · [Архитектура](docs/architecture.md) · [Реестр состояния](docs/studio-inventory.md).
 
-Then open `http://localhost:8501` in Windows. If WSL localhost forwarding is
-disabled, use the current WSL address from `hostname -I`, for example
-`http://172.29.54.130:8501`. Windows users can run `start-moneyprinterturbo.bat`
-from Explorer; it starts the WSL service and opens the browser.
-
-The project-local `.agents/skills/` directory connects the imported YouTube,
-video-shotcraft, brag, prompt-master, Seedance, and YouMind workflows. The
-catalog of tools, plugins, MCP integrations, and per-agent setup is in
-[`docs/studio-stack.md`](docs/studio-stack.md); pinned skill sources are in
-[`agent-stack/sources.json`](agent-stack/sources.json).
-
-## How it works
-
-- **highlights**: transcript segments `[start-end] text` go to the LLM, which returns `[{start,end,hook,caption,title,why}]`.
-  If `meta.json` has a YouTube `heatmap` ("Most replayed", saved by `fetch`), the top 8 buckets (merged, first bucket
-  skipped) go into the prompt and `validate()` keeps candidates overlapping a peak first.
-  If `hooks.json` exists (`[{hook_type, template, example, evidence}]`, written by the trends profile), up to 15 lines
-  of it go into the prompt; every clip gets a `hook_type` from a closed taxonomy (unknown -> `other`), copied to `qa.json`.
-  The committed `hooks.json` holds 5 generic PLACEHOLDER patterns, not measured data.
-  `caption` is the on-screen banner: it must add context, not repeat the spoken hook (falls back to `title` if it does).
-  `validate()` snaps times to word boundaries, trims to <=45 s, extends slightly-short picks to >=20 s, drops overlaps/garbage, keeps 3.
-- **edit**: faces sampled 3x/s with MediaPipe on the clip range (one frame in RAM at a time), scene cuts via PySceneDetect,
-  one static 9:16 crop per scene centred on the median face x; in a two-shot (two faces >=0.2 frame-width apart in >=half the
-  samples) the crop follows the active speaker: mouth-region frame difference / region contrast per 0.4 s window, counted
-  only where audio RMS >= 0.18 of the scene peak, a new speaker must win 3 windows in a row (cut backdated to the run start).
-  `--stack`: when both talk (each >= 20% of windows, scene >= 2.5 s) both are stacked 1080x960 each, captions on the seam.
-  Speaker logic ported from [mutonby/openshorts](https://github.com/mutonby/openshorts) (MIT, (c) 2024 OpenShorts);
-  their per-speaker percentile normalisation was replaced (it hid a continuous talker on short scenes); ffmpeg `crop` with a per-scene `if(lt(t,..))` expression,
-  ASS karaoke captions (<=3 words, current word yellow, held through pauses < 1.2 s) + banner (`caption`, never the spoken hook) for the first 2.5 s, loudnorm to -14 LUFS.
-- **qa**: duration 20-45 s, 1080x1920, audio mean volume > -40 dB, caption events, face fully inside frame on >=60% of
-  samples (2/s), >=3 words spoken in the first 2 s, first word not a filler (and/so/but/like/um/uh/you know).
-  `validate()` moves a filler opening to the next sentence start within 1.5 s (else past the filler run, else drops the pick).
-
-## Test input
-
-- Source: "NASA Astronaut Discusses Life In Space With KHQ-TV, Spokane's Lowedown On Life Podcast – July 18, 2025 (jsc2025m000132)"
-  https://commons.wikimedia.org/wiki/File:NASA_Astronaut_Discusses_Life_In_Space_With_KHQ-TV,_Spokane%E2%80%99s_Lowedown_On_Life_Podcast_%E2%80%93_July_18,_2025_(jsc2025m000132).webm
-- License: **Public domain** (NASA work, per the Wikimedia Commons file page). ~16.7 min, 1920x1080.
-- YouTube was tried first (CC-BY search filter) but yt-dlp gets "Sign in to confirm you're not a bot" from this IP for every client.
-
-## First run (2026-10-03, nasa-khq, all steps under `nice -n 10`, a heavy rebuild running in parallel)
-
-| step | wall | peak RSS | notes |
-|---|---|---|---|
-| fetch | 13 min | 66 MB | 508 MB VP9 1080p from Commons at ~0.6 MB/s |
-| transcribe GPU (medium, int8_float16) | 71 s | 1.98 GB | 16.7 min audio, ~14x realtime |
-| transcribe CPU (small, int8, 4 threads) | 191 s | 1.52 GB | ~5x realtime |
-| highlights (claude -p) | 81 s | 0.33 GB | codex CLI not logged in (401) -> fallback |
-| edit (3 clips, h264_nvenc) | 78 s | 0.70 GB | ~18-30 s per clip, face sampling dominates |
-| qa | 63 s | 0.35 GB | |
-
-All 3 clips pass QA (20-45 s, 1080x1920, audio ~-18 dB mean, captions, face in frame 100%, speech in first 2 s).
+**Безопасность:** не добавляйте в Git API-ключи, OAuth-токены, cookies, чужие исходные видео и веса моделей. Публикация материалов и платные генерации требуют отдельного подтверждения.
