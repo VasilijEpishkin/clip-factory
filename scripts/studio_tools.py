@@ -6,20 +6,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_DIR = ROOT / "studio-addons"
-SOURCES = (
-    "catalog.json",
-    "media-tools.json",
-    "research-open-source-higgsfield-2026.json",
-    "research-comfyui-extensions-2026.json",
-    "research-moss-vsr-2026.json",
-)
+def registry_sources():
+    """Обязательные каталоги и все исследовательские подборки.
+    
+    Новые research-*.json автоматически становятся доступны поиску;
+    код менять не требуется. Только локальные JSON, без сетевых запросов.
+    """
+    base = [REGISTRY_DIR / "catalog.json", REGISTRY_DIR / "media-tools.json"]
+    research = sorted(REGISTRY_DIR.glob("research-*.json"))
+    return base + [p for p in research if p not in base]
 
 
 def collect(query="", category=""):
     """Вернуть записи с указанием реестра и сохранением upstream-метаданных."""
     entries = []
-    for name in SOURCES:
-        source = REGISTRY_DIR / name
+    for source in registry_sources():
+        name = source.name
         if not source.is_file():
             continue
         data = json.loads(source.read_text(encoding="utf-8"))
